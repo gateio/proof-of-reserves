@@ -1,7 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
-const { MerkleTree } = require('merkletreejs'); // 用户哈希验证
+const { MerkleTree } = require('merkletreejs');
 const SHA256 = require('crypto-js/sha256');
 const LEAVES_HASH_LEN = 16;
 const DELIMITER = '\t';
@@ -21,7 +21,7 @@ $(function() {
 		var reader = new FileReader();
 		reader.onload = function() {
 			if (reader.result) {
-				//显示文件内容
+				// retrieve file content
 				TXT = reader.result;
 			}
 		};
@@ -45,7 +45,7 @@ $(function() {
 		var reader = new FileReader();
 		reader.onload = function() {
 			if (reader.result) {
-				//显示文件内容
+				// retrieve file content
 				VerifyTXT = reader.result;
 			}
 		};
@@ -58,12 +58,11 @@ function bufferToString(value) {
 }
 
 /**
- * 根据交易平台资产数据文件生成tree数据,btc_balances_merkletree.txt文件，默认存在项目根目录下resTxt内
- *
+ * build Merkle tree using input data, and save the data of leaf nodes in resTxt
  * @method merkle
  * @param {String} UserBalance content of input file
  * @param {String} name name of input file
- * @return {JSON} root（根节点） userNums（用户总量） totalBalance（总金额）
+ * @return {JSON} root userNums totalBalance
  */
 function createMerkle(UserBalance, fileName) {
 	if (!fileName || !UserBalance) {
@@ -73,7 +72,7 @@ function createMerkle(UserBalance, fileName) {
 
 	// process input file
 	const content = UserBalance;
-	var list = content.split(NEW_LINE); // read UID and balance from input
+	var list = content.split(NEW_LINE); // read UID and balance from input file
 	var balances_hash = [];
 	var total_balance = 0;
 	for (var i = 0; i < list.length; i++) {
