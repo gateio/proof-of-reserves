@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+        <script src="./jquery-1.11.1.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="FileSaver.js"></script>
+        <script type="text/javascript" src="./bundle.js"></script>
+	</head>
+	<style>		
+		.showBox b{
+			display: inline-block;
+			width: 130px;
+			text-align: right;
+			margin: 10px 0;
+		}
+		.verifyBox {
+			height: 400px;
+			border: 1px solid #000;
+			margin-top: 20px;
+			padding: 20px;
+		}
+		.verifyBox .btn {
+			width: 200px;
+			height: 40px;
+			text-align: center;
+			line-height: 40px;
+			background: #de5959;
+			border-radius: 5px;
+			color: #fff;
+			margin-top: 30px;
+			margin-bottom: 30px;
+			cursor: pointer;
+		}
+		.verifyBox label {
+			display: inline-block;
+			width: 100px;
+			text-align: right;
+			margin-right: 5px;
+		}
+		.inputBox {
+			margin-top: 5px;
+		}
+	</style>
+	<body>		
+		<div class="verifyBox">
+			<div>
+				<b>Proof of Reserves User's Balance Verifier</b>
+			</div>
+			<br>
+			<div class="inputBox">
+				Merkle Tree: <input class="upLoadMerkle" type="file">
+			</div>
+			<br>
+			<div class="inputBox">
+				<label>User ID: </label><input class="upLoadTxtUid" type="text">
+			</div>
+			<div class="inputBox">
+				<label>Balance: </label><input class="upLoadTxtBan" type="text">
+			</div>
+			<div class="btn">Verify</div>
+			<div class="showBox">
+				<b>Merkle RootHash:</b> <span class="computedRootHash"></span> <br>
+				<b>Result:</b> <span class="result"></span> <br>
+			</div>
+		</div>
+
+
+	</body>
+	<script type="text/javascript">
+		$(function () {
+		})
+	</script>
+</html>
