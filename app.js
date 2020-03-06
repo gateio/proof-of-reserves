@@ -8,12 +8,17 @@ const DELIMITER = '\t';
 const NEW_LINE = '\r\n';
 
 let rawFile, merkleFile;
+/**
+ * interaction between HTML and js code
+ */
 $(function() {
 	let TXT, VerifyTXT;
+	// create Merkle tree with user inpur of a list of (userId, userBalance)
 	$('.getMerkleTxtBox .btn').click(function() {
 		createMerkle(TXT, rawFile);
 	});
 
+	// upload leave nodes of the Merkle tree
 	$('.upLoadTxt').change(function(event) {
 		var files = event.target.files;
 		rawFile = files[0].name;
@@ -28,6 +33,7 @@ $(function() {
 		reader.readAsText(input.files[0]);
 	});
 
+	// verify user input of (userId, userBalance) within the Merkle tree that constructed by the given leaf nodes
 	$('.verifyBox .btn').click(function() {
 		let obj = {
 			uid: $('.upLoadTxtUid').val(),
@@ -38,6 +44,7 @@ $(function() {
 		verifyMerkle(VerifyTXT, obj);
 	});
 
+	// upload leaf nodes of the Merkle tree for verification
 	$('.upLoadMerkle').change(function(event) {
 		var files = event.target.files;
 		merkleFile = files[0].name;
@@ -53,6 +60,11 @@ $(function() {
 	});
 });
 
+/**
+ * convert given string into hex format
+ * @param value
+ * @returns {string}
+ */
 function bufferToString(value) {
 	return value.toString('hex');
 }
@@ -91,7 +103,7 @@ function createMerkle(UserBalance, fileName) {
 	}
 
 	console.log('number of balances hash: ' + balances_hash.length);
-	// construct leaves and horten hashed value in leaves
+	// construct leaves and shorten hashed value in leaves
 	const leaves = balances_hash.map(x =>
 		SHA256(x)
 			.toString()

@@ -1,17 +1,24 @@
 # Gate.io Proof-of-Reserves
 
-- [Gate.io Proof-of-Reserves](#gateio-proof-of-reserves)
-  - [Introduction](#introduction)
-  - [Background](#background)
-  - [Process Overview](#process-overview)
-  - [Technical Details](#technical-details)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Notes](#notes)
-  
-## Introduction
 This document introduces the background and guidance regarding Gate's audit process of Proof-of-Reserves, in order to transparently prove to customers that Gate held full reserves of their funds.
 
+## Table of Contents</strong>
+- [Gate.io Proof-of-Reserves](#gateio-proof-of-reserves)
+  - [Background](#background)
+  - [Process Overview](#process-overview)
+    - [Auditor Generates Merkle tree](#auditor-generates-the-merkle-tree-with-user-balances-provided-by-gate)
+    - [Auditor Verifies User Balance](#auditor-verifies-the-total-user-balance-and-publish-the-merkle-tree-and-root-hash)
+    - [User Verifies Their Own Balance](#user-independently-verify-their-account-balance)
+  - [Technical Details](#technical-details)
+    - [What is Merkle Tree](#what-is-merkle-tree)
+    - [How to Build Merkle Tree](#how-to-build-the-merkle-tree-with-user-id-and-user-balance)
+    - [How to Verify User Balance with Merkle Tree](#verify-user-id-and-balance-using-merkle-proof)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Implementation Details](#implementation-details)
+  - [License](#license)
+  
+  
 ## Background
 One of the core problems with cryptocurrency exchanges is transparency, which primarily involves in the proof of reserves. Because customers need to know and confirm that the service they are using does in fact hold 100% of their funds. Hence, Gate came up with this solution utilizing the Merkle tree approach to give customers the ability to verify their fund is fully held by Gate; besides, an independent and cryptographically-verified audit was employed to help with the audit process.
 
@@ -96,9 +103,24 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
 * Open `generator.html` in browser, import file with UID and user balances to build Merkle tree
 * Open `verifier.html` in browser, to validate UID and balance combination
 
-## Notes
+## Implementation Details
 * `app.js` core logic to build Merkle tree and perform validation
+    * The js function at the top handles interaction between js code and HTML. It receives user actions via HTML events, such as uploading raw user balance, creating Merkle tree, uploading Merkle tree and verifying user balance, and process the user input, then dispatch it to corresponding functions for further processing.
+    * Function `bufferToString()` handles String conversion to hex format. Since the Merkle tree node values, while retrieved from the buffer, are all in binary format.
+    * Function `createMerkle()` does four things below:
+        * Reads the user id and user balance provided in a plain text file, which was exported from Gate's database
+        * Then each pair of user id and corresponding balance will be hashed (SHA256 algorithm used in our code) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
+        * Calculate the total user balance and root hash of the Merkle tree, and display in generator.html.
+        * Save all leave node values of the Merkle tree in a plain text file for future verification by individuals and auditors.
+    * Function `verifyMerkle()` does two validations as below:
+        * Validate if the provided user id and user balance can be found in the leave nodes of the Merkle tree. This validation first computes the hashed value of provided user id and user balance, and look up the hashed value in the leaves nodes that saved from createMerkle() function.
+        * Only after step 1 succeed, then verify the hashed value is within the Merkle tree that generated in createMerkle() function. Verification was processed by the library api verify(), provided in merkletreejs.
 * `FileSaver.js` plugin to save files
-* `package.json` holds various metadata relevant to the project and handle the project's dependencies
 * `generator.html` html page to build Merkle tree and calculate merkle root hash
 * `verifier.html` html page to validate user id and user balance
+* `package.json` holds various metadata relevant to the project and handle the project's dependencies
+
+## License
+Copyright (c)Gate Technology Inc.. All rights reserved.
+
+Licensed under the [GPLv3](LICENSE) license.
