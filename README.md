@@ -82,45 +82,45 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
    </p>
 
 ## Installation
-* Install dependencies
+> Install dependencies
   ```shell
   npm install
   ```
-* Install build tool
+> Install build tool
   ```shell
   npm install -g browserify watchify
   ```
-* Create bundle.js to make it runanble in browser
+> Create bundle.js to make it runanble in browser
   ```shell
   browserify app.js -o bundle.js
   ```
-  or to achieve auto change detection and auto update of bundle.js, use watchify as shown below, use nohup to make this watchify command running at background
+> To achieve auto build of bundle.js, use watchify as shown below, or use nohup to make watchify command running at background
   ```shell
   nohup watchify app.js -o bundle.js -v > nohup.out 2>&1 </dev/null &
   ```
 
 ## Usage
-* Open `generator.html` in browser, import file with UID and user balances to build Merkle tree
-* Open `verifier.html` in browser, to validate UID and balance combination
+* Open **`generator.html`** in browser, import file with UID and user balances to build Merkle tree
+* Open **`verifier.html`** in browser, to validate UID and balance combination
 
 ## Implementation Details
-* `app.js` core logic to build Merkle tree and perform validation
+* **`app.js`** core logic to build Merkle tree and perform validation
     * The js function at the top handles interaction between js code and HTML. It receives user actions via HTML events, such as uploading raw user balance, creating Merkle tree, uploading Merkle tree and verifying user balance, and process the user input, then dispatch it to corresponding functions for further processing.
-    * Function `bufferToString()` handles String conversion to hex format. Since the Merkle tree node values, while retrieved from the buffer, are all in binary format.
-    * Function `createMerkle()` does four things below:
+    * Function ***`bufferToString()`*** handles String conversion to hex format. Since the Merkle tree node values, while retrieved from the buffer, are all in binary format.
+    * Function ***`createMerkle()`*** does four things below:
         * Reads the user id and user balance provided in a plain text file, which was exported from Gate's database
         * Then each pair of user id and corresponding balance will be hashed (SHA256 algorithm used in our code) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
         * Calculate the total user balance and root hash of the Merkle tree, and display in generator.html.
         * Save all leave node values of the Merkle tree in a plain text file for future verification by individuals and auditors.
-    * Function `verifyMerkle()` does two validations as below:
+    * Function ***`verifyMerkle()`*** does two validations as below:
         * Validate if the provided user id and user balance can be found in the leave nodes of the Merkle tree. This validation first computes the hashed value of provided user id and user balance, and look up the hashed value in the leaves nodes that saved from createMerkle() function.
         * Only after step 1 succeed, then verify the hashed value is within the Merkle tree that generated in createMerkle() function. Verification was processed by the library api verify(), provided in merkletreejs.
-* `FileSaver.js` plugin to save files
-* `generator.html` html page to build Merkle tree and calculate merkle root hash
-* `verifier.html` html page to validate user id and user balance
-* `package.json` holds various metadata relevant to the project and handle the project's dependencies
+* **`FileSaver.js`** plugin to save files
+* **`generator.html`** html page to build Merkle tree and calculate merkle root hash
+* **`verifier.html`** html page to validate user id and user balance
+* **`package.json`** holds various metadata relevant to the project and handle the project's dependencies
 
 ## License
-Copyright (c)Gate Technology Inc.. All rights reserved.
+Copyright 2020 © Gate Technology Inc.. All rights reserved.
 
-Licensed under the [GPLv3](LICENSE) license.
+Licensed under the **[GPLv3](LICENSE)** license.
