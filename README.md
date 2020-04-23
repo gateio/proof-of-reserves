@@ -41,7 +41,7 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
   
 
 * ### User independently verify their account balance
-   User needs to first get the published Merkle tree from Github, import into verifier.html, and then input his/her own User ID and token balance to trigger the verification process. If the UID and balance provided by user matches the record in the Merkle tree, a successful result will be displayed together with the node location of user information within the Merkle tree. The Merkle tree's root hash will be re-calculated using the imported file so that user can verify the root hash to ensure the correctness and completeness of the Merkle tree.
+   User needs to first get the published Merkle tree from Github, import into verifier.html, and then input his/her own hashed User ID and token balance to trigger the verification process. The hashed user id can be retrieved at https://www.gate.io/myaccount/myavailableproof. If the hashed UID and balance provided by user matches the record in the Merkle tree, a successful result will be displayed together with the node location of user information within the Merkle tree. The Merkle tree's root hash will be re-calculated using the imported file so that user can verify the root hash to ensure the correctness and completeness of the Merkle tree.
    
    <p align="center">
     <img src="images/verifier.png" alt="" style="text-align:right;width:500px;"/>
@@ -52,8 +52,8 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
 * ### What is Merkle Tree?
    In cryptography and computer science, a hash tree or Merkle tree is a tree in which every leaf node is labelled with the cryptographic hash of a data block, and every non-leaf node is labelled with the hash of the labels of its child nodes. Hash trees allow efficient and secure verification of the contents of large data structures.
 
-* ### How to build the Merkle tree with user id and user balance?
-   User id (UID) and user balances are first exported from Gate's database. Each pair of UID and user balance will be hashed respectively, and then concatenated to form the underlying data block.
+* ### How to build the Merkle tree with hashed user id and user balance?
+   Hashed user id (UID) and user balances are first exported from Gate's database. Each pair of hashed UID and user balance will be hashed respectively, and then concatenated to form the underlying data block.
    For each data block, the same hash function will be applied to generate the leaf nodes of the Merkle tree. The resulting hashed data are subsequently hashed together in pairs to create the parent nodes of the leaf nodes. This process continues until it results in a single hash known as the merkle root. Please refer to the diagram below for illustration. After the merkle tree is successfully built, the leaf nodes will be exported into a plain text file, which will be published together with the merkle root hash by the auditor.
 
    <p align="center">
@@ -61,8 +61,8 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
    </p>
 
 
-* ### Verify user id and balance using Merkle proof
-   In order to verify the input user id (UID) and user balance, we need to construct a merkle proof to verify the inclusion of such data within the Merkle tree. 
+* ### Verify hashed user id and balance using Merkle proof
+   In order to verify the input hashed user id (UID) and user balance, we need to construct a merkle proof to verify the inclusion of such data within the Merkle tree. 
 
     Merkle proofs are established by hashing the concatenation of hashed UID and hashed user balance, and climbing up the tree until obtaining the root hash, which has been published by the auditor in step #2.
 
@@ -75,7 +75,7 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
     * A'K' hashed with C'D' leads to the root, H(A'K' + C'D')
     * Compare the value of H(A'K' + C'D') with the published merkle root hash
 
-   Hence, we can prove whether the uer input data of (UID, Balance) is present or not in our merkle tree, wihtout having to reveal any other customer's user id or balance.
+   Hence, we can prove whether the uer input data of (hashed UID, Balance) is present or not in our merkle tree, wihtout having to reveal any other customer's user id or balance.
 
    <p align="center">
     <img src="images/MerkleProof.png" alt="" style="width:800px;"/>
@@ -108,16 +108,16 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
     * The js function at the top handles interaction between js code and HTML. It receives user actions via HTML events, such as uploading raw user balance, creating Merkle tree, uploading Merkle tree and verifying user balance, and process the user input, then dispatch it to corresponding functions for further processing.
     * Function ***`bufferToString()`*** handles String conversion to hex format. Since the Merkle tree node values, while retrieved from the buffer, are all in binary format.
     * Function ***`createMerkle()`*** does four things below:
-        * Reads the user id and user balance provided in a plain text file, which was exported from Gate's database
-        * Then each pair of user id and corresponding balance will be hashed (SHA256 algorithm used in our code) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
+        * Reads the hashed user id and user balance provided in a plain text file, which was exported from Gate's database
+        * Then each pair of hashed user id and corresponding balance will be hashed (SHA256 algorithm used in our code) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
         * Calculate the total user balance and root hash of the Merkle tree, and display in generator.html.
         * Save all leave node values of the Merkle tree in a plain text file for future verification by individuals and auditors.
     * Function ***`verifyMerkle()`*** does two validations as below:
-        * Validate if the provided user id and user balance can be found in the leave nodes of the Merkle tree. This validation first computes the hashed value of provided user id and user balance, and look up the hashed value in the leaves nodes that saved from createMerkle() function.
+        * Validate if the provided hashed user id and user balance can be found in the leave nodes of the Merkle tree. This validation first computes the hashed value of provided hashed user id and user balance, and look up the hashed value in the leaves nodes that saved from createMerkle() function.
         * Only after step 1 succeed, then verify the hashed value is within the Merkle tree that generated in createMerkle() function. Verification was processed by the library api verify(), provided in merkletreejs.
 * **`FileSaver.js`** plugin to save files
 * **`generator.html`** html page to build Merkle tree and calculate merkle root hash
-* **`verifier.html`** html page to validate user id and user balance
+* **`verifier.html`** html page to validate hashed user id and user balance
 * **`package.json`** holds various metadata relevant to the project and handle the project's dependencies
 
 ## License
