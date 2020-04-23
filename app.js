@@ -100,6 +100,10 @@ function createMerkle(UserBalance, fileName) {
 		var uid_hash = SHA256(uid);
 		var balance_hash = SHA256(balance);
 		balances_hash.push(uid_hash + balance_hash); // underlying data to build Merkle tree
+
+		if (i % 10000 == 0) {
+			console.log("users:" + i + "; balances:" + total_balance);
+		}
 	}
 
 	console.log('number of balances hash: ' + balances_hash.length);
@@ -126,7 +130,8 @@ function createMerkle(UserBalance, fileName) {
 			bufferToString(leavesFromTree[i]) +
 			NEW_LINE;
 	}
-
+	console.log('Merkle tree complete');
+	
 	// save the Merkle tree data as verify file
 	let resFileName = fileName.split('.')[0];
 	resFileName += '_merkletree.txt';
