@@ -164,7 +164,7 @@ function verifyMerkle(VerifyTXT, params) {
 
 	// compute the hashed value with given uid and balance
 	let uid = params.uid;
-	let balance = params.balance;
+	let balance = Number(params.balance).toFixed(8);
 	var uid_hash = SHA256(uid);
 	var balance_hash = SHA256(balance);
 	let leafStr = SHA256(uid_hash + balance_hash)
