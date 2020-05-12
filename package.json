@@ -1,7 +1,7 @@
 {
   "name": "gateio-proof-of-reserves",
   "version": "0.0.1",
-  "description": "Gate.io's proof-of-reserves using Merkle tree",  
+  "description": "Gate.io's proof-of-reserves using Merkle tree",
   "repository": "https://github.com/gateio/proof-of-reserves",
   "bugs": "https://github.com/gateio/proof-of-reserves/issues",
   "dependencies": {

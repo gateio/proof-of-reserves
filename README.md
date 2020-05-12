@@ -4,21 +4,22 @@ This document introduces the background and guidance regarding Gate's audit proc
 
 ## Table of Contents</strong>
 - [Gate.io Proof-of-Reserves](#gateio-proof-of-reserves)
+  - [Table of Contents</strong>](#table-of-contentsstrong)
+  - [Released Audit Assessment](#released-audit-assessment)
   - [Background](#background)
   - [Process Overview](#process-overview)
-    - [Auditor Generates Merkle tree](#auditor-generates-the-merkle-tree-with-user-balances-provided-by-gate)
-    - [Auditor Verifies User Balance](#auditor-verifies-the-total-user-balance-and-publish-the-merkle-tree-and-root-hash)
-    - [User Verifies Their Own Balance](#user-independently-verify-their-account-balance)
   - [Technical Details](#technical-details)
-    - [What is Merkle Tree](#what-is-merkle-tree)
-    - [How to Build Merkle Tree](#how-to-build-the-merkle-tree-with-user-id-and-user-balance)
-    - [How to Verify User Balance with Merkle Tree](#verify-user-id-and-balance-using-merkle-proof)
   - [Installation](#installation)
   - [Usage](#usage)
   - [Implementation Details](#implementation-details)
   - [License](#license)
-  
-  
+   
+
+## Released Audit Assessment
+| Date  | Audit Company  | Currency  | Report  | Website | Status |
+|---|---|---|---|---|---|
+| May 11, 2020  | Armanino LLP  | BTC  | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-11-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-11-2020].pdf)  | [Trust Explorer - Proof of Reservers](http://trustexplorer.io/proof-of-reserves) | Released  |
+
 ## Background
 One of the core problems with cryptocurrency exchanges is transparency, which primarily involves in the proof of reserves. Because customers need to know and confirm that the service they are using does in fact hold 100% of their funds. Hence, Gate came up with this solution utilizing the Merkle tree approach to give customers the ability to verify their fund is fully held by Gate; besides, an independent and cryptographically-verified audit was employed to help with the audit process.
 
