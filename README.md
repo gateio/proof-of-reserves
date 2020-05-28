@@ -16,9 +16,9 @@ This document introduces the background and guidance regarding Gate's audit proc
    
 
 ## Released Audit Assessment
-| Date  | Audit Company  | Currency  | Report  | Website | Status |
-|---|---|---|---|---|---|
-| May 11, 2020  | Armanino LLP  | BTC  | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-11-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-11-2020].pdf)  | [Trust Explorer - Proof of Reservers](http://trustexplorer.io/proof-of-reserves) | Released  |
+| Date         | Audit Company | Currency | Report                                                                                                                                                                 | Website                                                                          | Status   |
+| ------------ | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
+| May 11, 2020 | Armanino LLP  | BTC      | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-25-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-25-2020].pdf) | [Trust Explorer - Proof of Reservers](http://trustexplorer.io/proof-of-reserves) | Released |
 
 ## Background
 One of the core problems with cryptocurrency exchanges is transparency, which primarily involves in the proof of reserves. Because customers need to know and confirm that the service they are using does in fact hold 100% of their funds. Hence, Gate came up with this solution utilizing the Merkle tree approach to give customers the ability to verify their fund is fully held by Gate; besides, an independent and cryptographically-verified audit was employed to help with the audit process.
