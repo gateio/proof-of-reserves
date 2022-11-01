@@ -18,7 +18,7 @@ This document introduces the background and guidance regarding Gate's audit proc
 ## Released Audit Assessment
 | Date         | Audit Company | Currency | Report                                                                                                                                                                 | Website                                                                          | Status   |
 | ------------ | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
-| May 11, 2020 | Armanino LLP  | BTC      | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-25-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-25-2020].pdf) | [Trust Explorer - Proof of Reservers (May-25-2020)](http://trustexplorer.io/proof-of-reserves) | Released |
+| May 11, 2020 | Armanino LLP  | BTC      | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-25-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-25-2020].pdf) | [Trust Explorer - Proof of Reservers (May-25-2020)](https://proof-of-reserves.trustexplorer.io/clients/gate.io/gate-dataset-628806) | Released |
 | Oct 28, 2022 | Armanino LLP  | BTC&ETH  | [Gate.io Proof-of-Reserves Assessment Report [BTC&ETH] [Oct-28-2022]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC&ETH]%20[Oct-28-2022].pdf) | [Trust Explorer - Proof of Reservers (Oct-28-2022)](https://proof-of-reserves.trustexplorer.io/clients/gate.io) | Released |
 
 ## Background
