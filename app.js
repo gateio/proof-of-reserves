@@ -87,13 +87,18 @@ function createMerkle(UserBalance, fileName) {
 	var list = content.split(/\r?\n/); // read UID and balance from input file
 	var leaves = [];
 	var total_balance = 0;
+	var negative_balance = 0;
 	for (var i = 0; i < list.length; i++) {
 		var row = list[i];
 		if (row[0] == '#') continue;
 		var data = row.split(',');
 		if (data.length != 2) continue;
 		let uid = data[0];
-		let balance = data[1];
+		let balance = Number(data[1]);
+		if (balance === 0) continue;
+		if (balance < 0) {
+			negative_balance -= balance;
+		}
 		total_balance += balance * 1; // calculate total balance
 
 		//concatenate hashed uid and balance to form transaction data
@@ -134,6 +139,7 @@ function createMerkle(UserBalance, fileName) {
 
 	$('.rootHash').html(bufferToString(tree.getRoot()));
 	$('.userNums').html(leavesFromTree.length);
+	$('.negativeBalance').html(negative_balance);
 	$('.totalBalance').html(total_balance);
 }
 
