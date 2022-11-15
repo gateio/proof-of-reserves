@@ -5,7 +5,7 @@ const { MerkleTree } = require('merkletreejs');
 const SHA256 = require('crypto-js/sha256');
 const LEAVES_HASH_LEN = 16;
 const DELIMITER = '\t';
-const NEW_LINE = '\r\n';
+const NEW_LINE = '\n';
 
 let rawFile, merkleFile;
 /**
@@ -84,35 +84,29 @@ function createMerkle(UserBalance, fileName) {
 
 	// process input file
 	const content = UserBalance;
-	var list = content.split(NEW_LINE); // read UID and balance from input file
-	var balances_hash = [];
+	var list = content.split(/\r?\n/); // read UID and balance from input file
+	var leaves = [];
 	var total_balance = 0;
 	for (var i = 0; i < list.length; i++) {
 		var row = list[i];
 		if (row[0] == '#') continue;
 		var data = row.split(',');
 		if (data.length != 2) continue;
-		var uid = data[0];
-		var balance = data[1];
+		let uid = data[0];
+		let balance = data[1];
 		total_balance += balance * 1; // calculate total balance
 
 		//concatenate hashed uid and balance to form transaction data
-		var uid_hash = SHA256(uid);
-		var balance_hash = SHA256(balance);
-		balances_hash.push(uid_hash + balance_hash); // underlying data to build Merkle tree
+		let leafStr = generateAccountHash(uid, balance)
+		leaves.push(leafStr); // underlying data to build Merkle tree
 
 		if (i % 10000 == 0) {
 			console.log("users:" + i + "; balances:" + total_balance);
 		}
 	}
 
-	console.log('number of balances hash: ' + balances_hash.length);
-	// construct leaves and shorten hashed value in leaves
-	const leaves = balances_hash.map(x =>
-		SHA256(x)
-			.toString()
-			.substring(0, LEAVES_HASH_LEN)
-	);
+	console.log('number of balances hash: ' + leaves.length);
+
 	// build Merlke tree
 	const tree = new MerkleTree(leaves, SHA256);
 
@@ -163,13 +157,7 @@ function verifyMerkle(VerifyTXT, params) {
 	}
 
 	// compute the hashed value with given uid and balance
-	let uid = params.uid;
-	let balance = Number(params.balance).toFixed(8);
-	var uid_hash = SHA256(uid);
-	var balance_hash = SHA256(balance);
-	let leafStr = SHA256(uid_hash + balance_hash)
-		.toString()
-		.substring(0, LEAVES_HASH_LEN);
+	let leafStr = generateAccountHash(params.uid, params.balance);
 
 	// process input value
 	var content = VerifyTXT;
@@ -221,4 +209,20 @@ function verifyMerkle(VerifyTXT, params) {
 	} else {
 		$('.result').html('Could not find your information in the Merkle Tree.');
 	}
+}
+
+/**
+ * receive unformatted input data, and generate standard hash used for Merkle tree generation and verification
+ *
+ * @param uid the user hash id
+ * @param balance the user account balance
+ * @returns {string} the hash to be used as the Merkle tree leaf
+ */
+function generateAccountHash(uid, balance) {
+	let balance_satoshis = Number(balance).toFixed(8);
+	var uid_hash = SHA256(uid);
+	var balance_hash = SHA256(balance_satoshis);
+	return SHA256(uid_hash + balance_hash)
+		.toString()
+		.substring(0, LEAVES_HASH_LEN);
 }
