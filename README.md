@@ -8,6 +8,12 @@ The project involves the use of zk-SNARK, which is a powerful cryptographic tech
 
 By combining zk-SNARK with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use zk-SNARK to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
 
+
+## Initial Merkle Tree Verification Method
+
+Gate.io was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
+
+
 ## Preparations
 
 ### Install databases
@@ -151,7 +157,16 @@ If you need to compile binary programs for other platforms on a `Mac` computer, 
 
 After the keygen service is complete, several key files will be generated in the current directory, as follows:
 
-> zkpor864.ccs.ct.save zkpor864.ccs.save zkpor864.pk.A.save zkpor864.pk.B1.save zkpor864.pk.B2.save zkpor864.pk.E.save zkpor864.pk.K.save zkpor864.vk.save zkpor864.pk.Z.save
+
+> zkpor864.ccs.ct.save  
+> zkpor864.ccs.save  
+> zkpor864.pk.A.save  
+> zkpor864.pk.B1.save  
+> zkpor864.pk.B2.save  
+> zkpor864.pk.E.save  
+> zkpor864.pk.K.save  
+> zkpor864.vk.save  
+> zkpor864.pk.Z.save  
 
 If the Batch is set to 4, it will be `zkpor4.*.save`.
 
