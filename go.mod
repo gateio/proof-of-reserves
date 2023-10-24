@@ -9,9 +9,12 @@ require (
 	github.com/consensys/gnark v0.7.0
 	github.com/consensys/gnark-crypto v0.10.0
 	github.com/gatechain/gate-zk-smt v1.0.1
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/gocarina/gocsv v0.0.0-20230123225133-763e25b40669
 	github.com/shopspring/decimal v1.3.1
+	github.com/spf13/cobra v1.7.0
 	github.com/zeromicro/go-zero v1.4.4
+	golang.org/x/sync v0.2.0
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/gorm v1.24.5
 )
@@ -35,7 +38,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
@@ -59,7 +61,6 @@ require (
 	github.com/prometheus/procfs v0.10.1 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/otel v1.11.0 // indirect

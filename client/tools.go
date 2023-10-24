@@ -15,6 +15,7 @@ func ToolCommand() *cobra.Command {
 		ToolCleanKvrocks(),
 		ToolCheckProverStatus(),
 		ToolQueryCexAssets(),
+		ToolCheckUserAssetsFile(),
 	)
 	return cmd
 }
@@ -47,6 +48,17 @@ func ToolQueryCexAssets() *cobra.Command {
 		Short: "get cex assets info in json format",
 		Run: func(cmd *cobra.Command, args []string) {
 			tool_service.QueryCexAssets()
+		},
+	}
+	return cmd
+}
+
+func ToolCheckUserAssetsFile() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check_user_assets_file",
+		Short: "check user assets file csv",
+		Run: func(cmd *cobra.Command, args []string) {
+			tool_service.CheckUserFiles()
 		},
 	}
 	return cmd

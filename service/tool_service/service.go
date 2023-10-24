@@ -121,3 +121,20 @@ func QueryCexAssets() {
 	cexAssetsInfoBytes, _ := json.Marshal(newAssetsInfo)
 	fmt.Println(string(cexAssetsInfoBytes))
 }
+
+func CheckUserFiles() {
+	global.Cfg = &config.Config{}
+	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	if err != nil {
+		panic(fmt.Sprintf("load config err : %s", err.Error()))
+	}
+	err = json.Unmarshal(jsonFile, global.Cfg)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	_, _, err = utils.ReadUserAssetsV1(global.Cfg.UserDataFile)
+	if err != nil {
+		panic(err.Error())
+	}
+}
