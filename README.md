@@ -30,7 +30,9 @@ By combining zk-SNARK with Merkle Tree, both the integrity and consistency of th
  docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
 ```
 
- > If the connection fails after installing kvrocks: Solution 1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution 2: Install the service using the [source code](https://github.com/apache/kvrocks)
+  > If the connection fails after installing kvrocks:   
+  1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution  
+  2: Install the service using the [source code](https://github.com/apache/kvrocks)
 
 ### Install Go environment
 
