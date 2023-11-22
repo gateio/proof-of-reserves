@@ -28,5 +28,8 @@ var (
 		"spell": true,
 		"hot":   true,
 		"doge":  true,
+		"pepe":  true,
+		"floki": true,
+		"nft":   true,
 	}
 )
