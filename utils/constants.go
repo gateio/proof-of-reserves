@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	BatchCreateUserOpsCounts = 4
+	BatchCreateUserOpsCounts = 864
 	AccountTreeDepth         = 28
 	AssetCounts              = 350
 	RedisLockKey             = "prover_mutex_key"
@@ -31,5 +31,11 @@ var (
 		"pepe":  true,
 		"floki": true,
 		"nft":   true,
+		"sats":  true,
+		"btt":   true,
+		"bonk":  true,
+		"rats":  true,
+		"axl":   true,
+		"1cat":  true,
 	}
 )
