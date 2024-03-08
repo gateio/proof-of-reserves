@@ -37,5 +37,6 @@ var (
 		"rats":  true,
 		"axl":   true,
 		"1cat":  true,
+		"omi":   true,
 	}
 )
