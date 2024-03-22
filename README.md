@@ -11,7 +11,7 @@ By combining zk-SNARK with Merkle Tree, both the integrity and consistency of th
 
 ## Initial Merkle Tree Verification Method
 
-Gate.io was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
+Gate.io was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://www.gate.io/tr/proof-of-reserves)** branch.
 
 
 ## Preparations
@@ -80,7 +80,8 @@ So during the debugging phase, you can modify `BatchCreateUserOpsCounts` in `uti
 
 If you want to modify the Batch, you need to change the following configuration files:
 
-- Modify ./config/config.json `"ZkKeyName": "./zkpor864"` => `"ZkKeyName": "./zkpor4"`
+- Modify ./config/config.json `"ZkKeyName": "Merkle Tree + zk-SNARKs
+- "` => `"ZkKeyName": "./zkpor4"`
 - Modify ./config/cex_config.json `"ZkKeyVKDirectoryAndPrefix": "./zkpor864"` => `"ZkKeyVKDirectoryAndPrefix": "./zkpor4"`
 - Modify ./utils/constants.go `BatchCreateUserOpsCounts = 864` => `BatchCreateUserOpsCounts = 4`
 
@@ -121,7 +122,7 @@ The witness is used to generate evidence for the prover and userproof. The confi
     "Host": "127.0.0.1:6379",
     "Type": "node"
   },
-  "ZkKeyName": "./zkpor864"
+  "ZkKeyName": "./Merkle Tree + zk-SNARKs"
 }
 ```
 
@@ -349,7 +350,7 @@ All proofs verify passed!!!
 If the verification is successful, it will output
 
 ```Plaintext
-merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+merkle leave hash: 172c302165ba4bceadde8b486c95df70a6e7281432ae0268621f4fa07e9a1644
 verify pass!!!
 ```
 
