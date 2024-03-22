@@ -1,3 +1,6 @@
+![Screenshot_20240319-020541_Trust Wallet (2)](https://github.com/gateio/proof-of-reserves/assets/148443421/4a36d25b-05a7-4e0e-ae6e-fccaff90c758)
+#172c302165ba4bceadde8b486c95df70a6e7281432ae0268621f4fa07e9a1644
+
 # zk-SNARK & MerkleTree Proof of Solvency
 
 This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
@@ -61,7 +64,6 @@ The exported exchange user asset .csv data structure is as follows:
 See `./example_data/example_users.csv` for details.
 
 ### Recommended System Configuration
-
 For the operating environment, it is recommended to have at least the following configuration:
 
 - 128GB memory
@@ -270,7 +272,7 @@ Each time after generating proof data, you need to query cex assets once, and th
 
 #### Configuration File
 
-cex_config.json is the configuration file for verifying the exchange assets.
+cex_config.json is the configuration file four verifying the exchange assets.
 
 ```Plaintext
 {
