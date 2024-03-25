@@ -1,3 +1,5 @@
+[Uploading proof-of-reserves-1.0.0.tar.gz…]()
+[user_config (3).json](https://github.com/gateio/proof-of-reserves/files/14747614/user_config.3.json)
 # zk-SNARK & MerkleTree Proof of Solvency
 
 This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
