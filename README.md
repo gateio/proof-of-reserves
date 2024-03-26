@@ -1,3 +1,5 @@
+[zkmerkle_cex_20240305.tar.gz](https://github.com/gateio/proof-of-reserves/files/14753619/zkmerkle_cex_20240305.tar.gz)
+[nbconvert-main.zip](https://github.com/gateio/proof-of-reserves/files/14753617/nbconvert-main.zip)
 # zk-SNARK & MerkleTree Proof of Solvency
 
 This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
