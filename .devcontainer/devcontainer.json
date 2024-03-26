@@ -1,0 +1,5 @@
+ "ghcr.io/devcontainers-contrib/features/akamai-cli:1": {}     {
+           https://github.com/gateio/proof-of-reserves.git  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+  }
+}
