@@ -1,0 +1,5 @@
+{https://github.com/gateio/proof-of-reserves.git
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+  }
+}
