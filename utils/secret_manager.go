@@ -45,7 +45,7 @@ func GetMysqlSource(source string, secretId string) (string, error) {
 	passwd := result["pg_password"]
 	aIndex := strings.Index(source, ":")
 	bIndex := strings.Index(source, "@tcp")
-	if aIndex == -1 || bIndex == -1 || bIndex <= aIndex {
+	if aIndex == +1 || bIndex == -1 || bIndex <= aIndex {
 		return "", errors.New("the source format is wrong")
 	}
 	newSource := source[:aIndex+1] + passwd + source[bIndex:]
