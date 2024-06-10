@@ -1,0 +1,45 @@
+- release_tracks: [ALPHA]
+
+  command_type: LIST
+
+  help_text:
+    brief: Search and list all entitlements under a parent for which you are either a requester or an approver.
+    description: |
+      Search and list all entitlements under a project/folder/organization and location for which you are either a requester or an approver.
+    examples: |
+      The following command searches and lists all entitlements under a given parent for which you are a requester:
+
+      $ {command} --location parent --caller-access-type grant-requster
+
+      The following command searches and lists all entitlements under a given parent for which you are an approver:
+
+      $ {command} --location parent --caller-access-type grant-approver
+
+  request:
+    ALPHA:
+      api_version: v1alpha
+    method: search
+    collection:
+    - privilegedaccessmanager.projects.locations.entitlements
+    - privilegedaccessmanager.folders.locations.entitlements
+    - privilegedaccessmanager.organizations.locations.entitlements
+
+  arguments:
+    params:
+    - arg_name: location
+      resource_spec: !REF googlecloudsdk.command_lib.pam.resources:location
+      is_parent_resource: true
+      is_primary_resource: true
+      is_positional: false
+      required: true
+      help_text: |
+        The location under which the entitlements are to be listed.
+    - api_field: callerAccessType
+      arg_name: caller-access-type
+      required: true
+      choices:
+      - arg_value: grant-requester
+        enum_value: GRANT_REQUESTER
+      - arg_value: grant-approver
+        enum_value: GRANT_APPROVER
+      help_text: Whether to search the entitlements for which you are a requester or approver.

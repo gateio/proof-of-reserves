@@ -1,0 +1,74 @@
+- release_tracks: [ALPHA, BETA, GA]
+  help_text:
+    brief: "View storage pools."
+    description: |
+      View storage pools.
+
+      The compact default output format is explained below:
+
+      The type column contains all three types -- storage pool type, capacity and performance.
+      For example, the value
+
+      > "Hdb/Adv/Std"
+
+      means the storage pool type is "hyperdisk-balanced", its capacity type is "advanced", and its
+      performance type is "standard."
+
+      The list of storage pool abbreviations is as follows:
+
+      * HdB: Hyperdisk Balanced
+      * HdT: Hyperdisk Throughput
+
+      The list of capacity/performance abbreviations is as follows:
+
+      * Adv: Advanced
+      * Std: Standard
+
+      The capacity, iops and throughput columns describe used, provisioned, the utilization
+      rate. For example, the following value for capacity:
+
+      40 / 50 (80%)
+
+      means 40 TB of it is used, 50 TB provisioned, and its utilization rate is 80%.
+      The utilization rate is equivalent to used capacity divided by provisioned capacity.
+
+    examples: |
+        To display all storage pools in all regions and zones, run the following command:
+
+        $ {command}
+
+  request:
+    ALPHA:
+      api_version: alpha
+    BETA:
+      api_version: beta
+    GA:
+      api_version: v1
+
+    collection: compute.storagePools
+    method: aggregatedList
+
+  arguments:
+    resource:
+      help_text: |
+        The project of the storage pools to list.
+      spec: !REF googlecloudsdk.command_lib.compute.resources:compute_project
+      override_resource_collection: true
+
+  response:
+    modify_response_hooks:
+    - googlecloudsdk.api_lib.compute.response_hooks:flatten_aggregated_list:field_name=storagePools
+    - googlecloudsdk.api_lib.compute.storage_pools.modify_response_hooks:make_serializable
+    - googlecloudsdk.api_lib.compute.storage_pools.list_formatter:format_for_listing
+
+  output:
+    format: |
+      table(
+        name,
+        zone.scope("zones"),
+        formattedTypes:label=TYPE,
+        status.diskCount:label=DISK_COUNT,
+        formattedCapacity:label=CAPACITY_TB,
+        formattedIops.yesno(no="<n/a>"):label=IOPS,
+        formattedThroughput.yesno(no="<n/a>"):label=THROUGHPUT,
+        state)

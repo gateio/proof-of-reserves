@@ -1,0 +1,27 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: Describe a Dataplex entry.
+    description: |
+      Describe a Dataplex entry.
+
+      Displays the details of a Dataplex entry resource given a valid entry ID.
+    examples: |-
+      To describe a Dataplex entry `entry1` within entry group `entry-group1` in location `us-central1`,
+      run:
+
+        $ {command} entry1 --entry-group=entry-group1 --location=us-central1 --project=test-project
+
+  request:
+    collection: dataplex.projects.locations.entryGroups.entries
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.dataplex.request_hooks:TransformEntryRootPath
+
+  arguments:
+    resource:
+      help_text: Arguments and flags that define the Dataplex Entry you want to describe.
+      spec: !REF googlecloudsdk.command_lib.dataplex.resources:entry
+      is_positional: true
+    params:
+    - !REF googlecloudsdk.command_lib.dataplex.flags:get_entry_view
+    - !REF googlecloudsdk.command_lib.dataplex.flags:aspect_types
+    - !REF googlecloudsdk.command_lib.dataplex.flags:paths

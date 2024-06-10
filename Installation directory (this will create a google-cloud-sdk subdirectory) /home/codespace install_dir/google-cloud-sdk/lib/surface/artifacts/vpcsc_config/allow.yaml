@@ -1,0 +1,31 @@
+- release_tracks: [ALPHA, BETA, GA]
+
+  help_text:
+    brief: |
+      Allow Artifact Registry remote repositories inside a service perimeter to retrieve data from their upstream sources outside of the perimeter.
+    description: |
+      Allow Artifact Registry remote repositories inside a service perimeter to retrieve data from their upstream sources outside of the perimeter.
+
+      This command can fail for the following reasons:
+        * Lack of permission - "accesscontextmanager.policies.update".
+        * The resource could be outside of the VPC SC perimeter.
+        * Lack of permission - "artifactregistry.vpcscconfigs.update"
+
+    examples: |
+      The following command allows remote repositories in the project my-project and in the region us--west1 to retrieve data from upstream sources outside the perimeter:
+
+         $ {command} --project=my-project --location=us-west1
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:location
+      is_positional: false
+      help_text: |
+        The Artifact Registry VPC SC config to update.
+
+  request: &request
+    api_version: v1
+    disable_resource_check: true
+    method: updateVpcscConfig
+    collection: artifactregistry.projects.locations
+    issue_request_hook: googlecloudsdk.command_lib.artifacts.util:AllowVPCSCConfig

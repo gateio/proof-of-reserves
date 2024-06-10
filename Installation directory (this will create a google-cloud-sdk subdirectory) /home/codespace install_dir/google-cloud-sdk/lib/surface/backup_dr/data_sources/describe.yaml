@@ -1,0 +1,23 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: Show details of the data source.
+    description: Show all configuration data associated with the specified data source.
+    examples: |
+      To view details for data source 'DATA_SOURCE', run:
+
+        $ {command} DATA_SOURCE
+
+  request:
+    collection: backupdr.projects.locations.backupVaults.dataSources
+
+  response:
+    id_field: name
+
+  arguments:
+    resource:
+      help_text: Name of the data source to describe.
+      spec: !REF googlecloudsdk.command_lib.backupdr.resources:dataSource
+      is_positional: true
+
+  output:
+    format: json

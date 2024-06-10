@@ -1,0 +1,23 @@
+- release_tracks: [ALPHA, BETA, GA]
+  help_text:
+    brief: "Describe a storage pool type."
+    description: "Describe a storage pool."
+    examples: |
+      To retrieve a single storage pool type and print its properties, run the following command:
+
+      $ {command} my-storage-pool
+
+  request:
+    ALPHA:
+      api_version: alpha
+    BETA:
+      api_version: beta
+    GA:
+      api_version: v1
+
+    collection: compute.storagePoolTypes
+
+  arguments:
+    resource:
+      help_text: Name of the storage pool you want to inspect.
+      spec: !REF googlecloudsdk.command_lib.compute.resources:storage_pool_type

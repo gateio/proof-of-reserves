@@ -1,0 +1,30 @@
+- release_tracks: [ALPHA, BETA, GA]
+  help_text:
+    brief: "Get the IAM policy of a storage pool."
+    description: "Get the IAM policy of a storage pool."
+    examples: |
+      The following command retrieves the IAM configuration of the specified storage pool.
+
+        $ {command} my-storage-pool
+
+  request:
+    ALPHA:
+      api_version: alpha
+    BETA:
+      api_version: beta
+    GA:
+      api_version: v1
+
+    collection: compute.storagePools
+    use_relative_name: false
+    method: getIamPolicy
+
+  arguments:
+    resource:
+      help_text: Storage pool you want to get the IAM permissions of.
+      spec: !REF googlecloudsdk.command_lib.compute.resources:storage_pool
+
+  iam:
+    enable_condition: true
+    policy_version: 3
+    get_iam_policy_version_path: optionsRequestedPolicyVersion

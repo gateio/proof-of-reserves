@@ -1,0 +1,38 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: Lookup a Dataplex entry.
+    description: |
+      Lookup a Dataplex entry.
+
+      Displays the details of a Dataplex entry resource given a valid entry ID.
+      Unlike `describe`, where the Dataplex permission is required for access, for `lookup` the
+      permission from the original source system is required on the entry instead. For example, if
+      the source is a BigQuery table, you need the `bigquery.tables.get` permission to lookup an
+      entry.
+    examples: |-
+      To lookup a Dataplex entry `entry1` within entry group `entry-group1` in location `us-central1`,
+      run:
+
+        $ {command} entry1 --entry-group=entry-group1 --location=us-central1 --project=test-project
+
+  request:
+    collection: dataplex.projects.locations
+    method: lookupEntry
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.dataplex.request_hooks:TransformEntryRootPath
+
+  arguments:
+    params:
+    - arg_name: entry
+      help_text: Arguments and flags that define the Dataplex Entry you want to lookup.
+      is_positional: true
+      required: true
+      override_resource_collection: true
+      resource_spec: !REF googlecloudsdk.command_lib.dataplex.resources:entry
+      # Here we populate two fields from a single resource argument.
+      resource_method_params:
+        name: 'projects/{projectsId}/locations/{locationsId}'
+        entry: '{__relative_name__}'
+    - !REF googlecloudsdk.command_lib.dataplex.flags:get_entry_view
+    - !REF googlecloudsdk.command_lib.dataplex.flags:aspect_types
+    - !REF googlecloudsdk.command_lib.dataplex.flags:paths

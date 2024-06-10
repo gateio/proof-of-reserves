@@ -1,0 +1,22 @@
+release_tracks: [ALPHA]
+
+help_text:
+  brief: |
+    Describe a partner SSE environment.
+  description: |
+    Show details for the specified partner SSE environment.
+  examples: |
+    To describe a partner environment named `my-environment`, run:
+
+      $ {command} my-environment
+
+arguments:
+  resource:
+    spec: !REF googlecloudsdk.command_lib.network_security.resources:partnerSSEEnvironment
+    help_text: |
+      The partner environment to be described.
+
+request: &request
+  ALPHA:
+    api_version: v1alpha1
+  collection: networksecurity.projects.locations.partnerSSEEnvironments

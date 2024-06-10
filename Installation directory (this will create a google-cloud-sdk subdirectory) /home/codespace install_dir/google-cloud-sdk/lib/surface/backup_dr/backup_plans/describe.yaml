@@ -1,0 +1,22 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: Show details of the backup plan.
+    description: Show all data associated with the specified backup plan.
+    examples: |
+      To view details for backup plan 'BACKUP_PLAN', run:
+
+        $ {command} BACKUP_PLAN
+
+  request:
+    collection: backupdr.projects.locations.backupPlans
+
+  response:
+    id_field: name
+
+  arguments:
+    resource:
+      help_text: Name of the backup plan to describe.
+      spec: !REF googlecloudsdk.command_lib.backupdr.resources:backupPlans
+
+  output:
+    format: json

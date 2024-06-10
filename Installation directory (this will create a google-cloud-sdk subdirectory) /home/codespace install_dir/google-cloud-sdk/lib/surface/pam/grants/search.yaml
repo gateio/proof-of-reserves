@@ -1,0 +1,52 @@
+- release_tracks: [ALPHA]
+
+  command_type: LIST
+
+  help_text:
+    brief: Search and list all grants under an entitlement which you had created, had approved or can approve.
+    description: |
+      Search and list all grants under an entitlement which you had created, had approved or can approve.
+    examples: |
+      The following command will search and list all grants under an entitlement which you had created:
+
+      $ {command} --entitlement entitlement-name --caller-relationship had-created
+
+      The following command will search and list all grants under an entitlement which you had approved or denied:
+
+      $ {command} --entitlement entitlement-name --caller-relationship had-approved
+
+      The following command will search and list all grants under an entitlement which you can approve:
+
+      $ {command} --entitlement entitlement-name --caller-relationship can-approve
+
+  request:
+    ALPHA:
+      api_version: v1alpha
+    method: search
+    collection:
+    - privilegedaccessmanager.projects.locations.entitlements.grants
+    - privilegedaccessmanager.folders.locations.entitlements.grants
+    - privilegedaccessmanager.organizations.locations.entitlements.grants
+
+  arguments:
+    params:
+    - arg_name: entitlement
+      resource_spec: !REF googlecloudsdk.command_lib.pam.resources:entitlement
+      is_parent_resource: true
+      is_primary_resource: true
+      is_positional: false
+      required: true
+      help_text: |
+        The entitlement under which the grants are to be listed.
+    - api_field: callerRelationship
+      arg_name: caller-relationship
+      required: true
+      choices:
+      - arg_value: had-created
+        enum_value: HAD_CREATED
+      - arg_value: had-approved
+        enum_value: HAD_APPROVED
+      - arg_value: can-approve
+        enum_value: CAN_APPROVE
+      help_text: |
+        Whether to search the grants which you had created, had approved or can approve.

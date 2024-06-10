@@ -1,0 +1,38 @@
+release_tracks: [ALPHA]
+command_type: CONFIG_EXPORT
+help_text:
+  brief: Export the configuration for a Artifact Registry repository.
+  description: |
+    *{command}* exports the configuration for a Artifact Registry repository.
+
+    Repository configurations can be exported in
+    Kubernetes Resource Model (krm) or Terraform HCL formats. The
+    default format is `krm`.
+
+    Specifying `--all` allows you to export the configurations for all
+    repositories within the project.
+
+    Specifying `--path` allows you to export the configuration(s) to
+    a local directory.
+  examples: |
+    To export the configuration for a repository, run:
+
+      $ {command} my-repository
+
+    To export the configuration for a repository to a file, run:
+
+      $ {command} my-repository --path=/path/to/dir/
+
+    To export the configuration for a repository in Terraform
+    HCL format, run:
+
+      $ {command} my-repository --resource-format=terraform
+
+    To export the configurations for all repositories within a
+    project, run:
+
+      $ {command} --all
+arguments:
+  resource:
+    help_text: Repository to export the configuration for.
+    spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property

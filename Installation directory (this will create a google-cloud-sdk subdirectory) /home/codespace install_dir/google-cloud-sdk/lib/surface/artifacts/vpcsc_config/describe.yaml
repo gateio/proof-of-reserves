@@ -1,0 +1,30 @@
+- release_tracks: [ALPHA, BETA, GA]
+
+  help_text:
+    brief: |
+      Describe the current Artifact Registry configuration for VPC Service Controls.
+    description: |
+      Describe the current Artifact Registry configuration for VPC Service Controls.
+
+      This command can fail for the following reasons:
+        * Lack of permission - "accesscontextmanager.policies.get".
+        * The resource could be outside of the VPC SC perimeter.
+        * Lack of permission - "artifactregistry.vpcscconfigs.get"
+
+    examples: |
+      The following command returns the current VPC Service Controls configuration for the project my-project and region us-west1:
+
+         $ {command} --project=my-project --location=us-west1
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:location
+      is_positional: false
+      help_text: |
+        The Artifact Registry VPC SC configs to describe.
+
+  request: &request
+    api_version: v1
+    disable_resource_check: true
+    collection: artifactregistry.projects.locations
+    issue_request_hook: googlecloudsdk.command_lib.artifacts.util:GetVPCSCConfig

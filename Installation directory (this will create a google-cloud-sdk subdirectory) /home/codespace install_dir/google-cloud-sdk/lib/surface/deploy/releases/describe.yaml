@@ -1,0 +1,19 @@
+- release_tracks: [ALPHA, BETA, GA]
+
+  help_text:
+    brief: Show details about a release.
+    description: Show details a specified release.
+    examples: |
+      To show details about the release 'test-release', for delivery pipeline 'test-pipeline', in region 'us-central1', run:
+
+        $ {command} test-release --delivery-pipeline=test-pipeline --region=us-central1
+
+  request:
+    collection: clouddeploy.projects.locations.deliveryPipelines.releases
+    api_version: v1
+
+  arguments:
+    resource:
+      help_text: The release you want to describe.
+      spec: !REF googlecloudsdk.command_lib.deploy.resources:release
+      is_positional: true

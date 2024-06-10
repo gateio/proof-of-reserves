@@ -1,0 +1,235 @@
+- release_tracks: [GA]
+
+  help_text:
+    brief: |
+      Create an Artifact Registry repository.
+    description: |
+      Create a new Artifact Registry repository.
+
+      This command can fail for the following reasons:
+        * A repository with the same name already exists.
+        * The active account does not have permission to create repositories.
+        * A valid repository format was not provided.
+    examples: |
+      To create a repository with the name `my-repo` under the current project, run:
+
+        $ {command} my-repo
+
+      To create repository `my-repo` with a KMS key
+      `projects/my-project/locations/us/keyRings/my-kr/cryptoKeys/my-key`, run:
+
+        $ {command} my-repo --kms-key=projects/my-project/locations/us/keyRings/my-kr/cryptoKeys/my-key
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property
+      help_text: |
+        The Artifact Registry repository to create.
+    params:
+    - arg_name: description
+      api_field: repository.description
+      help_text: |
+        Description for the repository.
+    - arg_name: kms-key
+      api_field: repository.kmsKeyName
+      help_text: |
+        Name of the encryption key that's used for encrypting the contents of the repository.
+    - arg_name: allow-snapshot-overwrites
+      type: bool
+      default: null
+      api_field: repository.mavenConfig.allowSnapshotOverwrites
+      help_text: |
+        (Maven only) Allow repository users to publish a snapshot that overwrites the same snapshot version in the repository.
+    - arg_name: version-policy
+      api_field: repository.mavenConfig.versionPolicy
+      help_text: |
+        (Maven only) The package versions that the repository will store.
+      choices:
+      - arg_value: NONE
+        enum_value: VERSION_POLICY_UNSPECIFIED
+        help_text: (Maven only) The repository doesn't validate the version type.
+      - arg_value: RELEASE
+        enum_value: RELEASE
+        help_text: (Maven only) The repository accepts release versions only.
+      - arg_value: SNAPSHOT
+        enum_value: SNAPSHOT
+        help_text: (Maven only) The repository accepts snapshot versions only.
+    - arg_name: mode
+      api_field: repository.mode
+      default: NONE
+      help_text: |
+        Mode is the type of the repository - Standard, Virtual or Remote.
+      choices:
+      - arg_value: NONE
+        enum_value: MODE_UNSPECIFIED
+        help_text: Repository mode not specified.
+      - arg_value: STANDARD-REPOSITORY
+        enum_value: STANDARD_REPOSITORY
+        help_text: Standard repository mode - should be possible to write/read data to this repo.
+      - arg_value: VIRTUAL-REPOSITORY
+        enum_value: VIRTUAL_REPOSITORY
+        help_text: Virtual repository mode - aggregates data from several upstreams.
+      - arg_value: REMOTE-REPOSITORY
+        enum_value: REMOTE_REPOSITORY
+        help_text: Remote repository mode - fetches data from upstream and caches it.
+    - arg_name: remote-repo-config-desc
+      api_field: repository.remoteRepositoryConfig.description
+      help_text: |
+        The description for the remote repository config.
+    - arg_name: immutable-tags
+      type: bool
+      api_field: repository.dockerConfig.immutableTags
+      default: null
+      help_text: |
+        (Docker only) Prevent changes to tagged images in the repository. Tags cannot be deleted or moved to a different image digest, and tagged images cannot be deleted.
+    - arg_name: remote-apt-repo-path
+      api_field: repository.remoteRepositoryConfig.aptRepository.publicRepository.repositoryPath
+      help_text: |
+        (Apt only) Remaining URL path to apt remote repository.
+    - arg_name: remote-yum-repo-path
+      api_field: repository.remoteRepositoryConfig.yumRepository.publicRepository.repositoryPath
+      help_text: |
+        (Yum only) Remaining URL path to yum remote repository.
+    - arg_name: disable-remote-validation
+      type: bool
+      api_field: repository.remoteRepositoryConfig.disableUpstreamValidation
+      default: null
+      help_text: |
+        Do not make an HTTP request to validate the remote upstream. Not recommended when setting a custom remote upstream unless you are absolutely sure your upstream URI and any auth is valid.
+    - group:
+        mutex: true
+        hidden: true
+        params:
+        - arg_name: allow-vulnerability-scanning
+          api_field: repository.vulnerabilityScanningConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Allow vulnerability scanning on the repository.
+          choices:
+          - arg_value: true
+            enum_value: INHERITED
+            help_text: Vulnerability scanning enablement config set to inherited.
+        - arg_name: disable-vulnerability-scanning
+          api_field: repository.vulnerabilityScanningConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Disable vulnerability scanning on the repository.
+          choices:
+          - arg_value: true
+            enum_value: DISABLED
+            help_text: Vulnerability scanning enablement config set to disabled.
+    - group:
+        mutex: true
+        hidden: true
+        params:
+        - arg_name: allow-sbom-generation
+          api_field: repository.sbomConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Allow SBOM generation on the repository.
+          choices:
+          - arg_value: true
+            enum_value: INHERITED
+            help_text: SBOM generation enablement config set to inherited.
+        - arg_name: disable-sbom-generation
+          api_field: repository.sbomConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Disable SBOM generation on the repository.
+          choices:
+          - arg_value: true
+            enum_value: DISABLED
+            help_text: SBOM generation enablement config set to disabled.
+    labels:
+      api_field: repository.labels
+    additional_arguments_hook: googlecloudsdk.command_lib.artifacts.util:AddAdditionalArgs
+
+  async:
+    collection: artifactregistry.projects.locations.operations
+
+  request:
+    api_version: v1
+    collection: artifactregistry.projects.locations.repositories
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.artifacts.util:CheckServiceAccountPermission
+    - googlecloudsdk.command_lib.artifacts.util:AppendRepoDataToRequest
+    - googlecloudsdk.command_lib.artifacts.util:AppendUpstreamPoliciesToRequest
+    - googlecloudsdk.command_lib.artifacts.util:SanitizeRemoteRepositoryConfig
+
+- release_tracks: [ALPHA, BETA]
+
+  help_text:
+    brief: |
+      Create an Artifact Registry repository.
+    description: |
+      Create a new Artifact Registry repository.
+
+      This command can fail for the following reasons:
+        * A repository with the same name already exists.
+        * The active account does not have permission to create repositories.
+        * A valid repository format was not provided.
+    examples: |
+      To create a repository with the name `my-repo` under the current project, run:
+
+        $ {command} my-repo
+
+      To create repository `my-repo` with a KMS key
+      `projects/my-project/locations/us/keyRings/my-kr/cryptoKeys/my-key`, run:
+
+        $ {command} my-repo --kms-key=projects/my-project/locations/us/keyRings/my-kr/cryptoKeys/my-key
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property
+      help_text: |
+        The Artifact Registry repository to create.
+    params:
+    - arg_name: description
+      api_field: repository.description
+      help_text: |
+        Description for the repository.
+    - arg_name: kms-key
+      api_field: repository.kmsKeyName
+      help_text: |
+        Name of the encryption key that's used for encrypting the contents of the repository.
+    - arg_name: allow-snapshot-overwrites
+      type: bool
+      default: null
+      api_field: repository.mavenConfig.allowSnapshotOverwrites
+      help_text: |
+        (Maven only) Allow repository users to publish a snapshot that overwrites the same snapshot version in the repository.
+    - arg_name: version-policy
+      api_field: repository.mavenConfig.versionPolicy
+      help_text: |
+        (Maven only) The package versions that the repository will store.
+      choices:
+      - arg_value: NONE
+        enum_value: VERSION_POLICY_UNSPECIFIED
+        help_text: (Maven only) The repository doesn't validate the version type.
+      - arg_value: RELEASE
+        enum_value: RELEASE
+        help_text: (Maven only) The repository accepts release versions only.
+      - arg_value: SNAPSHOT
+        enum_value: SNAPSHOT
+        help_text: (Maven only) The repository accepts snapshot versions only.
+    labels:
+      api_field: repository.labels
+    additional_arguments_hook: googlecloudsdk.command_lib.artifacts.util:AddRepositoryFormatArgBeta
+
+  async:
+    collection: artifactregistry.projects.locations.operations
+
+  request:
+    api_version: v1beta2
+    collection: artifactregistry.projects.locations.repositories
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.artifacts.util:CheckServiceAccountPermission
+    - googlecloudsdk.command_lib.artifacts.util:AppendRepoDataToRequest

@@ -1,0 +1,31 @@
+- release_tracks: [ALPHA, BETA, GA]
+
+  help_text:
+    brief: |
+      Deny access to upstream sources outside the service perimeter for Artifact Registry remote repositories inside the perimeter.
+    description: |
+      Deny access to upstream sources outside the service perimeter for Artifact Registry remote repositories inside the perimeter.
+
+      This command can fail for the following reasons:
+        * Lack of permission - "accesscontextmanager.policies.update".
+        * The resource could be outside of the VPC SC perimeter.
+        * Lack of permission - "artifactregistry.vpcscconfigs.update"
+
+    examples: |
+      The following command denies access to upstream sources outside the service perimeter for remote repositories in the project my-project and in the region us--west1:
+
+         $ {command} --project=my-project --location=us-west1
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:location
+      is_positional: false
+      help_text: |
+        The Artifact Registry VPC SC config to update.
+
+  request: &request
+    api_version: v1
+    disable_resource_check: true
+    method: updateVpcscConfig
+    collection: artifactregistry.projects.locations
+    issue_request_hook: googlecloudsdk.command_lib.artifacts.util:DenyVPCSCConfig

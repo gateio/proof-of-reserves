@@ -1,0 +1,20 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: List Data Sources
+    description: Displays all data sources in a project.
+    examples: |
+      To list data sources for all backup vaults and locations, run:
+      $ {command}
+      To list all data sources for a backup vault ``my-vault'' in a location ``my-location'', run:
+      $ {command} --backup-vault=my-vault --location=my-location
+  request:
+    collection: backupdr.projects.locations.backupVaults.dataSources
+
+  response:
+    id_field: name
+
+  arguments:
+    resource:
+      help_text: Backup vault to list data sources from.
+      spec: !REF googlecloudsdk.command_lib.backupdr.resources:backupVaultDefault
+      is_positional: false

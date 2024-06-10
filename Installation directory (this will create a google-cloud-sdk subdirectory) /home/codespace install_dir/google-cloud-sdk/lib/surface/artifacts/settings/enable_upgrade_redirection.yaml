@@ -1,0 +1,28 @@
+- release_tracks: [ALPHA, BETA, GA]
+  help_text:
+    brief: |
+      Enables redirection from Container Registry to Artifact Registry.
+    description: |
+      Enables redirection from Container Registry to Artifact Registry.
+    examples: |
+      To enable redirection for project `my-project`:
+
+         $ {command} --project=my-project
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:project
+      is_positional: false
+      help_text: |
+        The project to read the settings from.
+    params:
+    - arg_name: dry-run
+      type: bool
+      help_text: Validate the project setup, but do not enable redirection
+
+  request:
+    api_version: v1
+    disable_resource_check: true
+    collection: artifactregistry.projects
+    method: updateProjectSettings
+    issue_request_hook: googlecloudsdk.command_lib.artifacts.util:EnableUpgradeRedirection
