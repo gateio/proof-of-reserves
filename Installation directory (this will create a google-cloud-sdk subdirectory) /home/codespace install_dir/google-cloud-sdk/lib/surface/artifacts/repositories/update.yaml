@@ -1,0 +1,148 @@
+- release_tracks: [GA]
+
+  help_text:
+    brief: |
+      Update an Artifact Registry repository.
+    description: |
+      Update the description or labels for an Artifact Registry repository.
+
+      This command can fail for the following reasons:
+        * A repository with this name does not exist.
+        * The active account does not have permission to update repositories.
+    examples: |
+      To update a repository with the name `my-repo` under the current project, run:
+
+        $ {command} my-repo --description="New description"
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property
+      help_text: |
+        The Artifact Registry repository to update.
+    params:
+    - arg_name: description
+      api_field: repository.description
+      help_text: |
+        Description for the repository.
+    - arg_name: immutable-tags
+      type: bool
+      default: null
+      api_field: repository.dockerConfig.immutableTags
+      help_text: |
+        (Docker only) Prevent changes to tagged images in the repository. Tags cannot be deleted or moved to a different image digest, and tagged images cannot be deleted.
+    - arg_name: remote-username
+      api_field: repository.remoteRepositoryConfig.upstreamCredentials.usernamePasswordCredentials.username
+      default: null
+      help_text: |
+        Remote Repository upstream registry username.
+    - arg_name: remote-password-secret-version
+      api_field: repository.remoteRepositoryConfig.upstreamCredentials.usernamePasswordCredentials.passwordSecretVersion
+      default: null
+      help_text: |
+        Secret Manager secret version that contains password for the remote repository upstream.
+    - group:
+        mutex: true
+        hidden: true
+        params:
+        - arg_name: allow-vulnerability-scanning
+          api_field: repository.vulnerabilityScanningConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Allow vulnerability scanning on the repository.
+          choices:
+          - arg_value: true
+            enum_value: INHERITED
+            help_text: Vulnerability scanning enablement config set to inherited.
+        - arg_name: disable-vulnerability-scanning
+          api_field: repository.vulnerabilityScanningConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Disable vulnerability scanning on the repository.
+          choices:
+          - arg_value: true
+            enum_value: DISABLED
+            help_text: Vulnerability scanning enablement config set to disabled.
+    - arg_name: disable-remote-validation
+      type: bool
+      api_field: repository.remoteRepositoryConfig.disableUpstreamValidation
+      default: null
+      help_text: |
+        Do not make an HTTP request to validate the remote upstream. Not recommended when setting a custom remote upstream unless you are absolutely sure your upstream URI and any auth is valid.
+    - group:
+        mutex: true
+        hidden: true
+        params:
+        - arg_name: allow-sbom-generation
+          api_field: repository.sbomConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Allow SBOM generation on the repository.
+          choices:
+          - arg_value: true
+            enum_value: INHERITED
+            help_text: SBOM generation enablement config set to inherited.
+        - arg_name: disable-sbom-generation
+          api_field: repository.sbomConfig.enablementConfig
+          default: null
+          action: store_true
+          hidden: true
+          help_text: |
+            Disable SBOM generation on the repository.
+          choices:
+          - arg_value: true
+            enum_value: DISABLED
+            help_text: SBOM generation enablement config set to disabled.
+    labels:
+      api_field: repository.labels
+    additional_arguments_hook: googlecloudsdk.command_lib.artifacts.util:UpstreamsArgs
+
+  request:
+    api_version: v1
+    collection: artifactregistry.projects.locations.repositories
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.artifacts.util:AppendUpstreamPoliciesToRequest
+
+  update:
+    read_modify_update: true
+
+- release_tracks: [ALPHA, BETA]
+
+  help_text:
+    brief: |
+      Update an Artifact Registry repository.
+    description: |
+      Update the description or labels for an Artifact Registry repository.
+
+      This command can fail for the following reasons:
+        * A repository with this name does not exist.
+        * The active account does not have permission to update repositories.
+    examples: |
+      To update a repository with the name `my-repo` under the current project, run:
+
+        $ {command} my-repo --description="New description"
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property
+      help_text: |
+        The Artifact Registry repository to update.
+    params:
+    - arg_name: description
+      api_field: repository.description
+      help_text: |
+        Description for the repository.
+    labels:
+      api_field: repository.labels
+
+  request:
+    api_version: v1
+    collection: artifactregistry.projects.locations.repositories
+
+  update:
+    read_modify_update: true

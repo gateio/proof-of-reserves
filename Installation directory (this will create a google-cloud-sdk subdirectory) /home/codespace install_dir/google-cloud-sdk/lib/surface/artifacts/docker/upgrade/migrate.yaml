@@ -1,0 +1,64 @@
+- release_tracks: [GA]
+  help_text:
+    brief: |
+      Migrate projects from Container Registry to Artifact Registry
+    description: |
+      Migrate projects from Container Registry to Artifact Registry
+    examples: |
+      To migrate a project `my-project` using gcr.io repositories:
+
+         $ {command} --projects=my-project
+
+      To migrate several projects using gcr.io repositories:
+
+         $ {command} --projects=my-project1,my-project2,my-project3
+
+      To migrate a project using pkg.dev repositories:
+
+         $ {command} --from-gcr=gcr.io/project1  --to-pkg-dev=project2/repo_name
+
+  arguments:
+    params:
+    - arg_name: projects
+      help_text: >
+        Comma seperated list of Container Registry projects to migrate to Artifact Registry gcr.io repositories.
+    - arg_name: recent-images
+      metavar: NUM_DAYS
+      type: int
+      help_text: Only copy images pulled or pushed in the last NUM_DAYS days. NUM_DAYS must be between 30 and 90 inclusive.
+    - arg_name: from-gcr
+      metavar: GCR_HOST/PROJECT_ID
+      help_text: >
+        Container Registry host + project to copy from. This flag is only used when migrating to pkg.dev repos. Example: gcr.io/my-project
+    - arg_name: to-pkg-dev
+      metavar: PROJECT_ID/REPOSITORY_ID
+      help_text: >
+        Artifact Registry pkg.dev project ID and repository ID to copy to. Example: my-project/my-repo
+    - arg_name: copy-only
+      type: bool
+      help_text: "Only perform image copying"
+    - arg_name: canary-reads
+      metavar: PERCENT
+      type: int
+      hidden: true
+      help_text: "Send only a percent of reads to Artifact Registry. The rest of reads and all writes are sent to Container Registry."
+    - arg_name: max-threads
+      type: int
+      default: 8
+      help_text: "Max number of images to copy simultaneously. Consider quota usage when increasing this"
+    - arg_name: skip-iam-update
+      type: bool
+      help_text: >
+        Migrate without changing iam-policy. Users without Artifact Registry permissions will not have access to migrated images.
+    - arg_name: last-uploaded-versions
+      metavar: N
+      type: int
+      help_text: >
+        Only copy the N most recently uploaded versions of each image. More than N images may be copied if new images are uploaded during migration.
+
+  request:
+    api_version: v1
+    disable_resource_check: true
+    collection: artifactregistry.projects
+    method: updateProjectSettings
+    issue_request_hook: googlecloudsdk.command_lib.artifacts.util:MigrateToArtifactRegistry

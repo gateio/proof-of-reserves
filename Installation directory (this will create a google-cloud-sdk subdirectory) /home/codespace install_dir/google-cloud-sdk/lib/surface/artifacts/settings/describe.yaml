@@ -1,0 +1,25 @@
+- release_tracks: [ALPHA, BETA, GA]
+  help_text:
+    brief: |
+      List all Artifact Registry project settings.
+    description: |
+      List all Artifact Registry project settings.
+    examples: |
+      To list project settings for project `my-project`:
+
+         $ {command} --project=my-package
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:project
+      is_positional: false
+      help_text: |
+        The project to read the settings from.
+
+  request:
+    api_version: v1
+    disable_resource_check: true
+    collection: artifactregistry.projects
+    method: getProjectSettings
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.artifacts.util:UpdateSettingsResource

@@ -1,0 +1,23 @@
+- release_tracks: [BETA, GA]
+  help_text:
+    brief: Get an On-Demand Scanning operation.
+    description: |
+      Get an On-Demand Scanning operation.
+    examples: |
+      The following command gets an On-Demand Scanning operation.
+
+        $ {command} projects/my-project/locations/europe/operations/ddf40882-0d55-4214-a619-c1c36df5040c
+
+  command_type: DESCRIBE
+  request:
+    collection: ondemandscanning.projects.locations.operations
+    BETA:
+      api_version: v1beta1
+    GA:
+      api_version: v1
+
+  arguments:
+    resource:
+      help_text: The scan operation to get.
+      spec: !REF googlecloudsdk.command_lib.container.images.resources:operation
+      is_positional: true

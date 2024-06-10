@@ -1,0 +1,39 @@
+- release_tracks: [ALPHA]
+  help_text:
+    brief: List Dataplex entries.
+    description: List Dataplex entries in an entry group.
+    examples: |-
+      To List the entries in entry group 'entry-group1', run:
+
+        $ {command} --entry-group=entry-group1 --location=us-central1 --project=test-project
+
+  request:
+    collection: dataplex.projects.locations.entryGroups.entries
+
+  arguments:
+    resource:
+      help_text: Example Entry Group to list all contained Entries.
+      spec: !REF googlecloudsdk.command_lib.dataplex.resources:entry_group
+      is_positional: false
+
+  response:
+    id_field: name
+  output:
+    format: |
+      table(
+        name.basename():label=ENTRY_ID,
+        entrySource.display_name:label=DISPLAY_NAME,
+        entrySource.description:label=DESCRIPTION,
+        entrySource.resource:label=RESOURCE,
+        entrySource.system:label=SYSTEM,
+        entrySource.platform:label=PLATFORM,
+        entrySource.labels:label=LABELS,
+        entrySource.ancestors:label=ANCESTORS,
+        entryType:label=ENTRY_TYPE,
+        createTime:label=ENTRY_CREATE_TIME,
+        updateTime:label=ENTRY_UPDATE_TIME,
+        parent_entry:label=PARENT_ENTRY,
+        fullyQualifiedName:label=FULLY_QUALIFIED_NAME,
+        entrySource.create_time:label=SOURCE_CREATE_TIME,
+        entrySource.update_time:label=SOURCE_UPDATE_TIME
+      )

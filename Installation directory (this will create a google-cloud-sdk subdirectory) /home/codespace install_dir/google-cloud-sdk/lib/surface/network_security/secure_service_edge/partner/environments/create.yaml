@@ -1,0 +1,54 @@
+release_tracks: [ALPHA]
+
+help_text:
+  brief: |
+    Create a partner SSE environment.
+  description: |
+    Create a new partner environment for customer realms.
+  examples: |
+    The following command creates a new partner environment named `my-environment` under the SSE provider `my-service`.
+
+      $ {command} my-environment --security-service=my-service --symantec-api-endpoint=partner.com --partner-network=my-network --partner-facing-subnet-ranges=100.64.1.0/24,100.64.2.0/24
+
+    Google will send customer traffic to `my-network` for security processing and use the `partner.com` endpoint to access the Symantec API.
+
+arguments:
+  resource:
+    spec: !REF googlecloudsdk.command_lib.network_security.resources:partnerSSEEnvironment
+    help_text: |
+      The partner environment to be created.
+  params:
+  - arg_name: security-service
+    required: true
+    api_field: partnerSSEEnvironment.sseService
+    help_text: |
+      SSE service for this environment.
+    choices:
+    - arg_value: symantec-cloud-swg
+      enum_value: SYMANTEC_CLOUD_SWG
+  - arg_name: symantec-api-endpoint
+    required: true
+    api_field: partnerSSEEnvironment.symantecOptions.apiEndpoint
+    help_text: |
+      Hostname of the Symantec API used to manage Symantec resources on the customer's behalf, such as `partner.com`.
+  - arg_name: partner-network
+    required: true
+    api_field: partnerSSEEnvironment.partnerNetwork
+    help_text: |
+      Network in the current project which will support customer traffic.
+  - arg_name: partner-facing-subnet-ranges
+    required: true
+    api_field: partnerSSEEnvironment.sseNetworkingRanges
+    type: arg_list
+    help_text: |
+      List of subnet ranges (in CIDR format) that are reserved for Google's use, such as `100.192.0.0/10,100.160.0.0/11`.
+      These should not overlap with any ranges used by the partner in `partner-network`.
+
+async:
+  collection: networksecurity.projects.locations.operations
+
+request: &request
+  ALPHA:
+    api_version: v1alpha1
+  collection: networksecurity.projects.locations.partnerSSEEnvironments
+  method: create

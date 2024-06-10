@@ -1,0 +1,37 @@
+- release_tracks: [ALPHA]
+
+  help_text:
+    brief: Revoke a grant.
+    description: |
+      Revoke a grant with a given name and reason.
+    examples: |
+      The following command revokes a grant with a given name and provides a reason for revoking:
+
+      $ {command} grant-name --reason revoke-reason
+
+  request:
+    ALPHA:
+      api_version: v1alpha
+    method: revoke
+    collection:
+    - privilegedaccessmanager.projects.locations.entitlements.grants
+    - privilegedaccessmanager.folders.locations.entitlements.grants
+    - privilegedaccessmanager.organizations.locations.entitlements.grants
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.pam.resources:grant
+      help_text: |
+        The name of the grant to revoke.
+    params:
+    - api_field: revokeGrantRequest.reason
+      arg_name: reason
+      help_text: The reason for revoking the grant.
+
+  async:
+    ALPHA:
+      api_version: v1alpha
+    collection:
+    - privilegedaccessmanager.projects.locations.operations
+    - privilegedaccessmanager.folders.locations.operations
+    - privilegedaccessmanager.organizations.locations.operations

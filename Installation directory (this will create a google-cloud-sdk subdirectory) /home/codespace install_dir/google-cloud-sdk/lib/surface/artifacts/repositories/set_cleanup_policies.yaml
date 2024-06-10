@@ -1,0 +1,67 @@
+- release_tracks: [GA]
+
+  help_text:
+    brief: |
+      Set or update cleanup policies for an Artifact Registry repository.
+    description: |
+      Set or update cleanup policies for an Artifact Registry repository.
+
+      This command can fail for the following reasons:
+        * The given repository does not exist.
+        * The active account does not have permission to update repositories.
+        * A valid cleanup policy format was not provided.
+        * The repository exceeds the maximum number of cleanup policies.
+
+      See https://cloud.google.com/artifact-registry/docs/repositories/cleanup-policy
+      for details of the cleanup policy file format and contents.
+
+    examples: |
+      To create a cleanup policy from a file with the name `policy.json` in the
+      repository `my-repo`, run:
+
+        $ {command} my-repo --policy=policy.json
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:repository_without_property
+      help_text: |
+        The parent Artifact Registry repository for the list of cleanup policies.
+
+    params:
+    - group:
+        required: true
+        params:
+        - arg_name: dry-run
+          api_field: repository.cleanupPolicyDryRun
+          type: bool
+          default: null
+          help_text: |
+            Disable deleting images according to cleanup policies.
+        - arg_name: policy
+          api_field: repository.cleanupPolicies
+          type: googlecloudsdk.command_lib.artifacts.cleanup_policy_util:ParseCleanupPolicy
+          help_text: |
+            Path to a local JSON formatted file containing valid cleanup policies.
+    - arg_name: overwrite
+      help_text: |
+        Delete existing policies and replace with the specified set of policies.
+      hidden: true
+      action:
+        deprecated:
+          removed: true
+          error: Flag {flag_name} is obsolete and should be omitted.
+
+  command_type: UPDATE
+  request:
+    api_version: v1
+    collection: artifactregistry.projects.locations.repositories
+
+  update:
+    read_modify_update: true
+
+  response:
+    modify_response_hooks:
+    - googlecloudsdk.command_lib.artifacts.cleanup_policy_util:RepositoryToCleanupPoliciesResponse
+
+  output:
+    format: json

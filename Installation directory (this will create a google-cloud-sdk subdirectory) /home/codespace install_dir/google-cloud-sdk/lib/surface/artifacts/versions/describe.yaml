@@ -1,0 +1,40 @@
+- release_tracks: [GA]
+
+  help_text:
+    brief: |
+      Describe an Artifact Registry package version.
+    description: |
+      Describe an Artifact Registry package version.
+
+      This command can fail for the following reasons:
+        * The specified package version does not exist.
+        * The active account does not have permission to describe package versions.
+
+    examples: |
+      To describe version `1.0.0` of `my-pkg` under the current project, repository, and location, run:
+
+          $ {command} 1.0.0 --package=my-pkg
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.artifacts.resources:version
+      help_text: |
+        The Artifact Registry package version to describe.
+    params:
+    - arg_name: show-package-vulnerability
+      type: bool
+      default: false
+      hidden: true
+      help_text: |
+        Include vulnerability metadata in the output.
+
+  request: &request
+    api_version: v1
+    collection: artifactregistry.projects.locations.repositories.packages.versions
+    modify_request_hooks:
+    - googlecloudsdk.command_lib.artifacts.util:EscapeVersionNameHook
+
+  response:
+    modify_response_hooks:
+    - googlecloudsdk.command_lib.artifacts.version_util:ShortenRelatedTags
+    - googlecloudsdk.command_lib.artifacts.version_util:ListOccurrences
