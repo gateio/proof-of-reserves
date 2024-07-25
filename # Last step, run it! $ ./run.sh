@@ -245,7 +245,36 @@ Here we need to provide users with two verification options:
 - Verify the user's own assets
 
 We need to compile the binary executable files (mac ubuntu windows) in advance for each phase to provide to users for download. Refer to the Release attachment for details.
+# Create a folder
+$ mkdir actions-runner && cd actions-runner 
 
+Copied! 
+
+# Download the latest runner package
+$ curl -o actions-runner-linux-x64-2.317.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.317.0/actions-runner-linux-x64-2.317.0.tar.gz 
+
+# Optional: Validate the hash
+$ echo "9e883d210df8c6028aff475475a457d380353f9d01877d51cc01a17b2a91161d actions-runner-linux-x64-2.317.0.tar.gz" | shasum -a 256 -c 
+
+Copied! 
+
+# Extract the installer
+$ tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz 
+
+Copied! 
+
+Yapılandır 
+
+# Create the runner and start the configuration experience
+$ ./config.sh --url https://github.com/Sarsilmaz-02 --token BDMRCHKYYL2Y5SPV2RIRRFTGUKPVC 
+
+# Last step, run it!
+$ ./run.sh 
+
+Kendi barındırdığınız koşucunuzu kullanma 
+
+# Use this YAML in your workflow file for each job
+runs-on: self-hosted
 ### Data and format required to verify exchange assets
 
 In addition to providing users with binary files for verifying exchange assets, we also need to provide the following three configuration data:
