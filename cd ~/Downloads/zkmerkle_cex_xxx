@@ -27,7 +27,7 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
 ## Process Overview
 * ### Auditor generates the Merkle tree with user balances provided by Gate
    Gate provides the auditor with all the details of user balances on a token basis. The auditor will then import the user balances into generator.html to generate the Merkle tree, as shown below:
-
+ cd ~/Downloads/zkmerkle_cex_xxx
    <p align="center"> 
     <img src="images/import.png" alt="" style="width:500px;"/>
    </P>
