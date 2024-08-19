@@ -1,6 +1,9 @@
 # zk-SNARK & MerkleTree Proof of Solvency
 
-This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
+This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX`[zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/16660176/zkmerkle_cex_20240520.tar.gz)
+: 
+[proof-of-reserves-master.zip](https://github.com/user-attachments/files/16660213/proof-of-reserves-master.zip)
+.(html)" by Vitalik Buterin, the co-founder of Ethereum.
 
 ## Project Introduction
 
@@ -21,7 +24,29 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 1. Mysql: Store proof, user_proof, and witness
 
 ```Plaintext
- docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+ docker run -d --Merkle ağacı - Gate.io-Denetim
+2024-05-20	
+Amerikan Doları
+Oluşturuluyor…	
+BTC/ETH/USDT/GT/1CAT/1INCH/AAVE/ADA/AGIX/AKT/ALGO/ANKR/ANT/APE/APT/AR/ARB/ARKS/ASTR/ATOM/AUCTION/AUDIO/AVAX/AXL/AXS/ AZERO/BAND/BANKBRC/BAT/BCH/BEAM/BICO/BIOP/BISO/BLUR/BNB/BNSX/BONK/BSV/BSVBRC/BTCS/BTG/BTT/CAKE/CELO/CFG/CFX/CHAX/CHEEL/CHZ/ BİLGİ /CORE/CRO/CRV/CSAS/CSPR/CVX/DAI/DAO/DESO/DOGE/DOT/DRAC/EGLD/ELF/ENJ/ENS/EOS/ETC/ETH2/ETHW/FDUSD/FET/FIL/FLOKI/FLOW /FLR/FNSA/FRAX/FTM/FTN/GALA/GAS/GLM/GLMR/GMT/GMX/GNO/GRT/HBAR/HNT/HOT/HT/ICP/ICX/ILV/IMX/INJ/IOTA/IOTX/JASMY /JOE/JST/JTO/KAS/KAVA /KLAY/KSM/LDO/LEO/LINK/LPT/LRC/LTC/LUNA/LUNC/LYX/MAGIC/MAJO/MANA/MATIC/MEME/MEMEBRC/MICE/MINA/MKR/MNT/MSOL/MUBI/NALS/NEAR /NEO/NEXO/NFT/NOOT/OCEAN/OKB/OKT/OP/ORCA/ORDI/OSMO/PEPE/PEPEBRC/PIZABRC/PRIME/PYUSD/QNT/QTUM/RATS/RAY/RBN/RDEX/RNDR/RON/RO SE/RPL/RUNE/RVN/SAND/SATS/SC/SEI/SFP/SHIB/SKL/SNX/SOL/STETH/STSOL/STX/SUPER/SUSHI/SXP/TAO/TFUEL/THETA/TRAC/TRB/TRX/ TURT/TUSD/TWT/UNI/USDC/USDD/USDP/USTC/VET/VMPX/WAVES/WAXP/WBT/WBTC/WEMIX/WLD/WOO/XAUT/XCH/XDC/XEC/XEM/XLM/XRD/XRP/ XTZ/YFI/ZIL/ZRX
+(209)
+Detaylar
+Karma Kullanıcı Kimliği="093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940"
+--
+`Merkle Ağacı`/
+…093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940
+{Merkle Yaprağı}"Merkle Tree + zk-SNARKs"
+…
+Varlıklarınız
+Toplam Varlıklar="5,628,406,410 USDT
+Excess Reserve Value:863,807,685 USDT"
+--
+Toplam Borçlanma
+--
+Varlıklar
+Denetim Zamanındaki Varlıklar
+Denetim Sırasındaki Yükümlülükler
+Denetim Zamanındaki Bakiye
 ```
 
 2. Redis: Distributed lock
@@ -33,8 +58,13 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 3. Kvrocks: Store user account tree
 
 ```Plaintext
- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
-```
+ docker run -d --name.Audit Time:2024-08-19 15:36:00 (UTC+0)
+Audit Algorithm:Merkle Tree + zk-SNARKs
+Total Value of Assets Audited:5,628,406,410 USDT
+Excess Reserve Value:863,807,685 USDT
+Total Reserve Ratio:115.35%
+Merkle Root Hash:
+093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940 ```
 
   > If the connection fails after installing kvrocks:   
   1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution  
