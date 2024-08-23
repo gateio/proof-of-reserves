@@ -1,0 +1,58 @@
+
+
+## Final User Content
+
+So the file structure the user finally gets is roughly as follows:
+
+```Plaintext
+- config
+    cex_config.json
+    user_config.json
+    proof.csv
+zkpor864.vk.save
+main
+```
+
+> Binary file `main` may have different names depending on the device
+
+- Mac OS (Intel): zkproof_darwin_amd64
+- Mac OS (M1): zkproof_darwin_arm64
+- Linux: zkproof_linux_amd64
+- Windows: zkproof_windows_amd64.exe
+
+## User Verifies Exchange Assets
+
+Run the following command to start the verification
+
+```Plaintext
+.zkmerkle_cex_xxx.tar.gz./chmod./777.tar`/./main./cex~config/.json./main-verify./cex~
+```
+
+If the verification is successful, it will output
+
+```Plaintext
+All proofs verify passed!!!
+```
+
+## User Verifies Their Own Assets
+
+```Plaintext
+./main verify user
+```
+
+If the verification is successful, it will output
+
+```Plaintext
+merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+verify pass!!!
+```
+
+## Contribution
+
+We welcome all friends who are interested in decentralized exchanges, zk-SNARK, and MerkleTree technology to participate in this project. Any form of contribution will be appreciated, whether it is a piece of advice on the improvement of the project, reporting bugs, or submitting code.
+
+
+## License
+Copyright 2023 © Gate Technology Inc.. All rights reserved.
+
+Licensed under the GPLv3 license.
