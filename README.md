@@ -20,20 +20,61 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 
 1. Mysql: Store proof, user_proof, and witness
 
-```Plaintext
- docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+```zkmerkle_cex_xxx.
+tar.gz_run-Audit_Period :2024-05-20 00:00:00 (UTC+0)
+-Control_Algorithm :Merkle Tree + zk-SNARKs
+-Total_Value_of Audited Assets :5,628,406,410 USDT
+-Excess_Reserve_Value :863,807,685 USDT
+-Total_Reserve_Ratio :115.35%
+-Merkle_Root' Hash :093d2036bc4a6bab3f956db
+74856ee98e43bd03b137f7129b5854750335e4940
+`
 ```
+## Date//base account.
 
-2. Redis: Distributed lock
+```config
+Gate.io PoR
+Last inspection time :
 
-```Plaintext
- docker run -d --name zk-redis -p 6379:6379 redis
+2024-05-20 00:00:00 (UTC+0)
+
+Excess reserve value :
+
+$  0.86B​
+
+Algorithm:
+
+Merkle Tree + zk-SNARKs
+
+Total reserve ratio :
+
+115.34%
+
+Merkle Root Mix :
+
+093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940
+
+
+Customer Net Balance
+
+$  5,628,406,410
+
+Gate Wallet Balance
+
+$  6,492,214,095
+
+Excess reserve value
+
+$  863,807,685
+
+
 ```
 
 3. Kvrocks: Store user account tree
 
 ```Plaintext
- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
+ docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks- Merkle Root Mix :
+093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940
 ```
 
   > If the connection fails after installing kvrocks:   
@@ -49,13 +90,13 @@ To compile the program, you need to use the Go language environment, which you c
 The exported exchange user asset .csv data structure is as follows:
 
 ```Plaintext
-- rn    #sequence
-- id    #the unique identifier of the user in the exchange
-- e_xtoken   #user's xtoken equity, such as e_BTC
-- d_xtoken   #user's xtoken debt, such as d_BTC
-- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
-- xtoken_usdt_price    #price of xtoken
-- total_net_balance_usdt    #the total USDT value of all user's tokens
+-Audit_Period :2024-05-20 00:00:00 (UTC+0)
+-Control_Algorithm :Merkle Tree + zk-SNARKs
+-Total_Value_of Audited Assets :5,628,406,410 USDT
+-Excess_Reserve_Value :863,807,685 USDT
+-Total_Reserve_Ratio :115.35%
+-Merkle_Root' Hash :093d2036bc4a6bab3f956db
+74856ee98e43bd03b137f7129b5854750335e4940
 ```
 
 See `./example_data/example_users.csv` for details.
@@ -141,7 +182,39 @@ Download the project to your local machine and start compiling the program.
 ### Compile the program
 
 ```Plaintext
-make build
+make account' 23456789
+0123456789
+0123456789
+.
+0123456789
+0123456789
+%
+
+Customer Net Balance
+
+15,803.70
+
+Gate Wallet Balance
+
+18,420.00
+
+Gate Wallet Balance USD
+
+$  1,220,628,930
+
+USDT
+Reserve Ratio
+0123456789
+0
+0123456789
+.
+0123456789
+0123456789
+%
+
+Customer,Net,Balance,895,074,126.09,Gate,Wallet,Balance,943,992,283.00,Gate,Wallet,Balance,USD,$,943,992,283,ETH'Reserve,Ratio.0123456789.0123456789.0123456789.0123456789 ,0123456789 % Customer Net Balance:208,147.69-Gate Wallet Balance:236,105.00-Gate Wallet Balance USD
+
+$ 
 ```
 
 If you need to compile binary programs for other platforms on a `Mac` computer, you can execute the following commands:
