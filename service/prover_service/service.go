@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 )
 
-func Handler() {
+func Handler(pendingFlag bool) {
 	global.Cfg = &config.Config{}
 	jsonFile, err := ioutil.ReadFile("./config/config.json")
 	if err != nil {
@@ -20,5 +20,5 @@ func Handler() {
 	}
 
 	prover := NewProver(global.Cfg)
-	prover.Run(false)
+	prover.Run(pendingFlag)
 }
