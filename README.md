@@ -21,7 +21,10 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 1. Mysql: Store proof, user_proof, and witness
 
 ```Plaintext
- docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+ docker run -d --nast-inspection-time :2024-05-20-00:00:00 (UTC+0)-Excess reserve value :$  0.86B-Algorithm:Merkle Tree + zk-SNARKs-Total reserve ratio :
+115.34%-Merkle Root Mix:093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940-Customer Net-Balance-$5,628,406,410_Gate_Wallet Balance-$  6,492,214,095_Excess reserve value_$_863,807,685
+
+
 ```
 
 2. Redis: Distributed lock
@@ -49,7 +52,8 @@ To compile the program, you need to use the Go language environment, which you c
 The exported exchange user asset .csv data structure is as follows:
 
 ```Plaintext
-- rn    #sequence
+- rn    docker run -d --nast-inspection-time :2024-05-20-00:00:00 (UTC+0)-Excess reserve value :$  0.86B-Algorithm:Merkle Tree + zk-SNARKs-Total reserve ratio :
+115.34%-Merkle Root Mix:093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940-Customer Net-Balance-$5,628,406,410_Gate_Wallet Balance-$  6,492,214,095_Excess reserve value_$_863,807,685  #sequence
 - id    #the unique identifier of the user in the exchange
 - e_xtoken   #user's xtoken equity, such as e_BTC
 - d_xtoken   #user's xtoken debt, such as d_BTC
@@ -141,7 +145,8 @@ Download the project to your local machine and start compiling the program.
 ### Compile the program
 
 ```Plaintext
-make build
+ docker run -d --nast-inspection-time :2024-05-20-00:00:00 (UTC+0)-Excess reserve value :$  0.86B-Algorithm:Merkle Tree + zk-SNARKs-Total reserve ratio :
+115.34%-Merkle Root Mix:093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940-Customer Net-Balance-$5,628,406,410_Gate_Wallet Balance-$  6,492,214,095_Excess reserve value_$_863,807,685make accounts'date
 ```
 
 If you need to compile binary programs for other platforms on a `Mac` computer, you can execute the following commands:
