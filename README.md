@@ -1,6 +1,6 @@
-20202020# zk-SNARK & MerkleTree Proof of Solvency
+# zk-SNARK & MerkleTree Proof of Solvency
 
-This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
+This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2024/09/17/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
 
 ## Project Introduction
 
@@ -27,13 +27,19 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 2. Redis: Distributed lock
 
 ```Plaintext
- docker run -d --name zk-redis -p 6379:6379 redis
+ docker run -d --name dizin,-%100 yedek denetim belgesi
+Gate.io, %100 rezerv taahhüt eden ilk ana platformdur
+-Gate.io PoR-En son denetim zamanı :2024-09-17-11:09:00 (UTC+0)-Fazla rezervlerin değeri :864 milyon dolar -Denetim algoritması:Merkle Ağacı + zk-SNARK'lar
+-Toplam Rezerv Oranı :%115,34-Merkle kök karması:093d2036bc4a6bab3f956db74856ee98e43bd03b137f7129b5854750335e4940- Müşteri net bakiyesi: 5.628.406.410 $ - Gate cüzdan bakiyesi:6.492.214.095 $ -fazla rezerv değeri:863.807.685 $ 
+
+
 ```
 
 3. Kvrocks: Store user account tree
 
 ```Plaintext
- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
+ docker run -d --name[Gate.io PoR Implementation upd.pdf](https://github.com/user-attachments/files/17024821/Gate.io.PoR.Implementation.upd.pdf)
+
 ```
 
   > If the connection fails after installing kvrocks:   
@@ -49,13 +55,101 @@ To compile the program, you need to use the Go language environment, which you c
 The exported exchange user asset .csv data structure is as follows:
 
 ```Plaintext
-- rn    #sequence
-- id    #the unique identifier of the user in the exchange
-- e_xtoken   #user's xtoken equity, such as e_BTC
-- d_xtoken   #user's xtoken debt, such as d_BTC
-- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
-- xtoken_usdt_price    #price of xtoken
-- total_net_balance_usdt    #the total USDT value of all user's tokens
+Bitcoin,rezerv oranı:0123456789,0123456789,0123456789
+.0123456789,0123456789,%
+Müşteri net bakiyesi:15.803,70-Gate cüzdan bakiyesi:18.420,00-Gate cüzdan bakiyesi USD:1.220.628.930 $ 
+
+
+USDT
+rezerv oranı
+0123456789
+0
+0123456789
+.
+0123456789
+0123456789
+%
+Müşteri net bakiyesi
+
+895.074.126,09
+
+Gate cüzdan bakiyesi
+
+943.992.283,00
+
+Gate cüzdan bakiyesi USD
+
+943.992.283 $ 
+
+
+ETH
+rezerv oranı
+0123456789
+0123456789
+0123456789
+.
+0123456789
+0123456789
+%
+Müşteri net bakiyesi
+
+208.147,69
+
+Gate cüzdan bakiyesi
+
+236.105,00
+
+Gate cüzdan bakiyesi USD
+
+725.118.592 $ 
+
+
+DOGE
+rezerv oranı
+0123456789
+0
+0123456789
+.
+0123456789
+0123456789
+%
+Müşteri net bakiyesi
+
+2.008.494.984,15
+
+Gate cüzdan bakiyesi
+
+2.194.636.960,00
+
+Gate cüzdan bakiyesi USD
+
+327.222.565 $ 
+
+
+ETH2
+rezerv oranı
+0123456789
+0123456789
+0123456789
+.
+0123456789
+0
+%
+Müşteri net bakiyesi
+
+68.452,52
+
+Gate cüzdan bakiyesi
+
+78.176,00
+
+Gate cüzdan bakiyesi USD
+
+240.336.476 $ 
+
+
+ŞİB'rezerv oranı:0123456789
+0' 0123456789.'0123456789'0123456789%-Müşteri net bakiyesi: 8.401.492.279.474,73-Gate cüzdan bakiyesi:8.927.307.634.575,00-Gate cüzdan bakiyesi USD: 213.005.560 $
 ```
 
 See `./example_data/example_users.csv` for details.
