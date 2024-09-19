@@ -1,364 +1,823 @@
-# zk-SNARK & MerkleTree Proof of Solvency
-
-This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
-
-## Project Introduction
-
-The project involves the use of zk-SNARK, which is a powerful cryptographic technology. We first place all users' deposits into a Merkle tree and then use zk-SNARK to prove that all the balances in the tree are non-negative and their sum equals a claimed value. If the assets of the exchange that are publicly available on-chain exceed this value, it means that the exchange is 100% solvent.
-
-By combining zk-SNARK with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use zk-SNARK to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
-
-
-## Initial Merkle Tree Verification Method
-
-Gate.io was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
-
-
-## Preparations
-
-### Install databases
-
-1. Mysql: Store proof, user_proof, and witness
-
-```Plaintext
- docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
-```
-
-2. Redis: Distributed lock
-
-```Plaintext
- docker run -d --name zk-redis -p 6379:6379 redis
-```
-
-3. Kvrocks: Store user account tree
-
-```Plaintext
- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
-```
-
-  > If the connection fails after installing kvrocks:   
-  1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution  
-  2: Install the service using the [source code](https://github.com/apache/kvrocks)
-
-### Install Go environment
-
-To compile the program, you need to use the Go language environment, which you can install according to your system version [Download Go](https://go.dev/dl/).
-
-### Export exchange's user asset data
-
-The exported exchange user asset .csv data structure is as follows:
-
-```Plaintext
-- rn    #sequence
-- id    #the unique identifier of the user in the exchange
-- e_xtoken   #user's xtoken equity, such as e_BTC
-- d_xtoken   #user's xtoken debt, such as d_BTC
-- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
-- xtoken_usdt_price    #price of xtoken
-- total_net_balance_usdt    #the total USDT value of all user's tokens
-```
-
-See `./example_data/example_users.csv` for details.
-
-### Recommended System Configuration
-
-For the operating environment, it is recommended to have at least the following configuration:
-
-- 128GB memory
-- 32-core virtual machine
-- 50 GB disk space
-
+diff --git a/README.md b/README.md
+dizin 1f1e8405..bb9bcd81 100644
+--- a/README.md
++++ b/README.md
+@@ -27,13 +27,752 @@ Gate.io, varlık doğrulamasını uygulayan ilk kripto para borsalarından biriydi
+ 2. Redis: Dağıtılmış kilit
  
-
-## Configuration File
-
-When generating zk keys in a production environment, it is recommended to set the Batch variable to 864, which indicates how many users can be created in a batch. The larger the value, the longer it takes to generate the zk key and proof.
-
-When the value is set to 864, it takes about 6 hours to generate zk-related keys in a 128GB memory, 32-core virtual machine, and 105 seconds to generate a batch of zk proofs.
-
-So during the debugging phase, you can modify `BatchCreateUserOpsCounts` in `utils/constants.go` to `4` and recompile. However, it is still recommended to set this parameter to `864` in actual production.
-
-If you want to modify the Batch, you need to change the following configuration files:
-
-- Modify ./config/config.json `"ZkKeyName": "./zkpor864"` => `"ZkKeyName": "./zkpor4"`
-- Modify ./config/cex_config.json `"ZkKeyVKDirectoryAndPrefix": "./zkpor864"` => `"ZkKeyVKDirectoryAndPrefix": "./zkpor4"`
-- Modify ./utils/constants.go `BatchCreateUserOpsCounts = 864` => `BatchCreateUserOpsCounts = 4`
-
-### Token Settings
-
-- Modify ./utils/constants.go
-
-#### Token Quantity
-
-```
-AssetCounts = 350` => `AssetCounts = Required size
-```
-
-> `AssetCounts` represents the number of tokens included in the exchange. The actual number cannot be lower than the set value. For example, if there are 420 tokens, you can modify it to 500. Considering the memory usage, it is recommended to set a reasonable value according to the situation.
-
-#### Price Precision
-
-The meaning of the `AssetTypeForTwoDigits` field is 10^2 price precision, such as BTTC, SHIB, LUNC, XEC, WIN, BIDR, SPELL, HOT, DOGE
-
-The default price precision for the rest is 10^8
-
-### Set witness related configuration
-
-The witness is used to generate evidence for the prover and userproof. The config.json configuration is as follows:
-
-```Plaintext
-{
-  "MysqlDataSource" : "zkroot:zkpasswd@tcp(127.0.0.1:3306)/zkpos?parseTime=true",
-  "DbSuffix": "202307",
-  "UserDataFile": "./example_data/",
-  "TreeDB": {
-    "Driver": "redis",
-    "Option": {
-      "Addr": "127.0.0.1:6666"
-    }
-  },
-  "Redis": {
-    "Host": "127.0.0.1:6379",
-    "Type": "node"
-  },
-  "ZkKeyName": "./zkpor864"
-}
-```
-
-- `MysqlDataSource`: Mysql database link
-- `DbSuffix`: The suffix of the table generated by Mysql. For example, if you enter the time 202307, it will generate witness202307. **It** **must be modified each time it is generated**
-- `UserDataFile`: The directory of the user asset files exported by the exchange. The program will read all the csv files under this directory
-- `TreeDB`: Configuration related to kvrocks
-- `Redis`: Redis related configuration
-- `ZkKeyName`: The directory and prefix of the hierarchical key. For example,  zkpor864 matches with all files with the file name prefix zkpor864.*
-
-> The `DbSuffix` field is the suffix of the table. It must be changed every time. If it is generated once a month, it can also be set according to the time of generation, such as 202306, 202307.
-
-## Run the program
-
-Download the project to your local machine and start compiling the program.
-
-### Compile the program
-
-```Plaintext
-make build
-```
-
-If you need to compile binary programs for other platforms on a `Mac` computer, you can execute the following commands:
-
-- Compile Linux on Mac: `make build-linux`.
-- Compile Windows on Mac: `make build-windows`.
-
-### Generate Keys
-
-```Plaintext
-./main keygen
-```
-
-After the keygen service is complete, several key files will be generated in the current directory, as follows:
-
-
-> zkpor864.ccs.ct.save  
-> zkpor864.ccs.save  
-> zkpor864.pk.A.save  
-> zkpor864.pk.B1.save  
-> zkpor864.pk.B2.save  
-> zkpor864.pk.E.save  
-> zkpor864.pk.K.save  
-> zkpor864.vk.save  
-> zkpor864.pk.Z.save  
-
-If the Batch is set to 4, it will be `zkpor4.*.save`.
-
-This step takes a long time to run. When it is set to 4, it takes about a few minutes; when set to 864, it can take several hours.
-
-**Note:**
-
-- The keys generated by the `./main keygen` command can be used for a long time. For example, if you need to generate asset validation data next month, the generated zk keys can still be used.
-- In subsequent user validation processes, the `zkpor864.vk.save` file is required. Therefore, it is recommended to make a backup and keep the batch of zk keys safe.
-
-### Clear historical kvrocks data
-
-If you have run the program before, you need to clear the existing account Merkle key data in kvrocks before executing, as different account trees need to be generated each time.
-
-```Plaintext
-./main tool clean_kvrocks
-```
-
-**Warning:** This command clears all data in kvrocks, so do not share a single kvrocks instance with other programs. After the previous data is cleared, you can start generating proofs.
-
-### Start witness service
-
-```Plaintext
-./main witness
-```
-
-> After the operation is completed, a table with the witness+suffix will be created in the Mysql database (according to the `DbSuffix` in `config.json`). The table contains the witness proof data in batches, and the data in the table will play a role in the subsequent generation of zk proof and user proof.
-
-### Generate zk proof
-
-The Prover service is used to generate zk proofs and supports parallel operation. It reads witnesses from the witness table in mysql.
-
-Run the following command to generate zk proof data:
-
-```Plaintext
-./main prover
-```
-
-> This command supports parallel operation. You need to copy the main file and other related files such as zkpor864 to other machines and ensure that the configuration in the `config.json` file is the same. In this way, Redis can be used as a distributed lock to run at the same time.
-
-You can run the following command to query the execution status:
-
-```Plaintext
-./main tool check_prover_status
-```
-
-When the operation is finished, it will return:
-
-```Plaintext
-Total witness item 50, Published item 0, Pending item 0, Finished item 50
-```
-
-Make sure all the witness items are in the finished state, which means the prover operation is completed.
-
-> After the prover service is executed, there will be an additional table in the Mysql database with the proof+suffix (according to the `DbSuffix` in `config.json`). The data in the table needs to be made public to users so that they can verify the exchange's assets later. In the verify stage, it will be explained in detail how to do this.
-
-### Generate user proof
-
-The userproof service is used to generate and persist user Merkle proofs.
-
-Run the following command to generate user proof data:
-
-```Plaintext
-./main userproof
-```
-
-Performance: Generates about 10k proofs per second for users in a 128GB memory and 32-core virtual machine.
-
-> After running the userproof command, a table named userproof+suffix (based on `config.json` in `DbSuffix`) will be generated in the mysql database. The data in this table contains the user's asset information and can be configured with permissions as needed. This table needs to be opened to designated users for download, in order to make a proof of their account assets. The specific instructions will be explained in the verify section below.
-
-## Provide verification data
-
-Here we need to provide users with two verification options:
-
-- Verify the exchange's assets
-- Verify the user's own assets
-
-We need to compile the binary executable files (mac ubuntu windows) in advance for each phase to provide to users for download. Refer to the Release attachment for details.
-
-### Data and format required to verify exchange assets
-
-In addition to providing users with binary files for verifying exchange assets, we also need to provide the following three configuration data:
-
-1. Download `proof.csv`: Export the previously generated proof table as a CSV file (including headers) in advance, such as proof202307.csv, and provide it to users for download.
-2. `zkpor864.vk.save`: We need to provide users with the previously generated verify key file for zk864.
-3. `Exchange's assets`: After the above Proof file is generated, you can use the following command to query the sum of the user's asset table provided by the exchange:
-
-```Plaintext
- ./main tool query_cex_assets
-```
-
-A result like the following will be returned:
-
-```Plaintext
- [{"TotalEquity":10049232946,"TotalDebt":0,"BasePrice":3960000000,"Symbol":"1inch","Index":0},{"TotalEquity":421836,"TotalDebt":0,"BasePrice":564000000000,"Symbol":"aave","Index":1},{"TotalEquity":0,"TotalDebt":0,"BasePrice":79800000,"Symbol":"ach","Index":2},{"TotalEquity":3040000,"TotalDebt":0,"BasePrice":25460000000,"Symbol":"acm","Index":3},{"TotalEquity":17700050162640,"TotalDebt":0,"BasePrice":2784000000,"Symbol":"ada","Index":4},{"TotalEquity":485400000,"TotalDebt":0,"BasePrice":1182000000,"Symbol":"adx","Index":5},{"TotalEquity":0,"TotalDebt":0,"BasePrice":907000000,"Symbol":"aergo","Index":6},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2720000000,"Symbol":"agld","Index":7},{"TotalEquity":1969000000,"TotalDebt":0,"BasePrice":30500000,"Symbol":"akro","Index":8},{"TotalEquity":0,"TotalDebt":0,"BasePrice":141000000000,"Symbol":"alcx","Index":9},{"TotalEquity":15483340912,"TotalDebt":0,"BasePrice":1890000000,"Symbol":"algo","Index":10},{"TotalEquity":3187400,"TotalDebt":0,"BasePrice":11350000000,"Symbol":"alice","Index":11},{"TotalEquity":1760000,"TotalDebt":0,"BasePrice":2496000000,"Symbol":"alpaca","Index":12},{"TotalEquity":84596857600,"TotalDebt":0,"BasePrice":785000000,"Symbol":"alpha","Index":13},{"TotalEquity":3672090936,"TotalDebt":0,"BasePrice":20849000000,"Symbol":"alpine","Index":14},{"TotalEquity":198200000,"TotalDebt":0,"BasePrice":132600000,"Symbol":"amb","Index":15},{"TotalEquity":53800000,"TotalDebt":0,"BasePrice":32200000,"Symbol":"amp","Index":16},{"TotalEquity":3291606210,"TotalDebt":0,"BasePrice":340300000,"Symbol":"anc","Index":17},{"TotalEquity":192954000,"TotalDebt":0,"BasePrice":166000000,"Symbol":"ankr","Index":18},{"TotalEquity":2160000,"TotalDebt":0,"BasePrice":20940000000,"Symbol":"ant","Index":19},{"TotalEquity":5995002000,"TotalDebt":0,"BasePrice":40370000000,"Symbol":"ape","Index":20},{"TotalEquity":0,"TotalDebt":0,"BasePrice":11110000000,"Symbol":"api3","Index":21},{"TotalEquity":53728000,"TotalDebt":0,"BasePrice":38560000000,"Symbol":"apt","Index":22},{"TotalEquity":0,"TotalDebt":0,"BasePrice":68500000000,"Symbol":"ar","Index":23},{"TotalEquity":55400000,"TotalDebt":0,"BasePrice":667648400,"Symbol":"ardr","Index":24},{"TotalEquity":8320000,"TotalDebt":0,"BasePrice":266200000,"Symbol":"arpa","Index":25},{"TotalEquity":18820000,"TotalDebt":0,"BasePrice":401000000,"Symbol":"astr","Index":26},{"TotalEquity":13205405410,"TotalDebt":0,"BasePrice":934000000,"Symbol":"ata","Index":27},{"TotalEquity":7016230960,"TotalDebt":0,"BasePrice":102450000000,"Symbol":"atom","Index":28},{"TotalEquity":2619441828,"TotalDebt":0,"BasePrice":40900000000,"Symbol":"auction","Index":29},{"TotalEquity":9640198,"TotalDebt":0,"BasePrice":1432000000,"Symbol":"audio","Index":30},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2306000000000,"Symbol":"auto","Index":31},{"TotalEquity":886400,"TotalDebt":0,"BasePrice":5390000000,"Symbol":"ava","Index":32},{"TotalEquity":2883562350,"TotalDebt":0,"BasePrice":117800000000,"Symbol":"avax","Index":33},{"TotalEquity":1864300912,"TotalDebt":0,"BasePrice":68200000000,"Symbol":"axs","Index":34},{"TotalEquity":843870,"TotalDebt":0,"BasePrice":23700000000,"Symbol":"badger","Index":35},{"TotalEquity":114869291528,"TotalDebt":0,"BasePrice":1379000000,"Symbol":"bake","Index":36},{"TotalEquity":95400,"TotalDebt":0,"BasePrice":54110000000,"Symbol":"bal","Index":37},{"TotalEquity":123113880,"TotalDebt":0,"BasePrice":14610000000,"Symbol":"band","Index":38},{"TotalEquity":0,"TotalDebt":0,"BasePrice":37100000000,"Symbol":"bar","Index":39},{"TotalEquity":73090049578,"TotalDebt":0,"BasePrice":1774000000,"Symbol":"bat","Index":40},{"TotalEquity":28891300,"TotalDebt":0,"BasePrice":1017000000000,"Symbol":"bch","Index":41},{"TotalEquity":19889623294,"TotalDebt":0,"BasePrice":4130000000,"Symbol":"bel","Index":42},{"TotalEquity":374840602180,"TotalDebt":0,"BasePrice":699700000,"Symbol":"beta","Index":43},{"TotalEquity":270294580,"TotalDebt":0,"BasePrice":12290900000000,"Symbol":"beth","Index":44},{"TotalEquity":35692901600,"TotalDebt":0,"BasePrice":2730000000,"Symbol":"bico","Index":45},{"TotalEquity":0,"TotalDebt":0,"BasePrice":639000,"Symbol":"bidr","Index":46},{"TotalEquity":240200000,"TotalDebt":0,"BasePrice":538000000,"Symbol":"blz","Index":47},{"TotalEquity":83614634622,"TotalDebt":0,"BasePrice":2599000000000,"Symbol":"bnb","Index":48},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3490000000,"Symbol":"bnt","Index":49},{"TotalEquity":1560,"TotalDebt":0,"BasePrice":592000000000,"Symbol":"bnx","Index":50},{"TotalEquity":2076000,"TotalDebt":0,"BasePrice":32630000000,"Symbol":"bond","Index":51},{"TotalEquity":44699589660,"TotalDebt":0,"BasePrice":1768000000,"Symbol":"bsw","Index":52},{"TotalEquity":291716078,"TotalDebt":0,"BasePrice":169453900000000,"Symbol":"btc","Index":53},{"TotalEquity":15500321300000000,"TotalDebt":0,"BasePrice":6300,"Symbol":"bttc","Index":54},{"TotalEquity":70771546756,"TotalDebt":0,"BasePrice":5240000000,"Symbol":"burger","Index":55},{"TotalEquity":12058907297354,"TotalDebt":1476223055432,"BasePrice":10000000000,"Symbol":"busd","Index":56},{"TotalEquity":34716440000,"TotalDebt":0,"BasePrice":1647000000,"Symbol":"c98","Index":57},{"TotalEquity":1541723702,"TotalDebt":0,"BasePrice":33140000000,"Symbol":"cake","Index":58},{"TotalEquity":2112000,"TotalDebt":0,"BasePrice":5200000000,"Symbol":"celo","Index":59},{"TotalEquity":317091540000,"TotalDebt":0,"BasePrice":101000000,"Symbol":"celr","Index":60},{"TotalEquity":137111365560,"TotalDebt":0,"BasePrice":228000000,"Symbol":"cfx","Index":61},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1820000000,"Symbol":"chess","Index":62},{"TotalEquity":258540000,"TotalDebt":0,"BasePrice":1140000000,"Symbol":"chr","Index":63},{"TotalEquity":289172288882,"TotalDebt":0,"BasePrice":1099000000,"Symbol":"chz","Index":64},{"TotalEquity":0,"TotalDebt":0,"BasePrice":25100000,"Symbol":"ckb","Index":65},{"TotalEquity":1851135024806,"TotalDebt":0,"BasePrice":535500000,"Symbol":"clv","Index":66},{"TotalEquity":155010000,"TotalDebt":0,"BasePrice":5202000000,"Symbol":"cocos","Index":67},{"TotalEquity":52093390,"TotalDebt":0,"BasePrice":335800000000,"Symbol":"comp","Index":68},{"TotalEquity":13991592000,"TotalDebt":0,"BasePrice":44500000,"Symbol":"cos","Index":69},{"TotalEquity":51240788068,"TotalDebt":0,"BasePrice":557000000,"Symbol":"coti","Index":70},{"TotalEquity":0,"TotalDebt":0,"BasePrice":107900000000,"Symbol":"cream","Index":71},{"TotalEquity":15940224,"TotalDebt":0,"BasePrice":5470000000,"Symbol":"crv","Index":72},{"TotalEquity":2336000,"TotalDebt":0,"BasePrice":7450000000,"Symbol":"ctk","Index":73},{"TotalEquity":88860000,"TotalDebt":0,"BasePrice":1059000000,"Symbol":"ctsi","Index":74},{"TotalEquity":440400000,"TotalDebt":0,"BasePrice":1763000000,"Symbol":"ctxc","Index":75},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3375000000,"Symbol":"cvp","Index":76},{"TotalEquity":176202,"TotalDebt":0,"BasePrice":30810000000,"Symbol":"cvx","Index":77},{"TotalEquity":0,"TotalDebt":0,"BasePrice":9999000100,"Symbol":"dai","Index":78},{"TotalEquity":90702266836,"TotalDebt":0,"BasePrice":1293500000,"Symbol":"dar","Index":79},{"TotalEquity":29386961406,"TotalDebt":0,"BasePrice":458300000000,"Symbol":"dash","Index":80},{"TotalEquity":1628888000,"TotalDebt":0,"BasePrice":235500000,"Symbol":"data","Index":81},{"TotalEquity":0,"TotalDebt":0,"BasePrice":186229836100,"Symbol":"dcr","Index":82},{"TotalEquity":0,"TotalDebt":0,"BasePrice":15920000000,"Symbol":"dego","Index":83},{"TotalEquity":26105549312822,"TotalDebt":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalDebt":0,"BasePrice":24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalDebt":0,"BasePrice":82200000,"Symbol":"dgb","Index":86},{"TotalEquity":1120000,"TotalDebt":0,"BasePrice":2970000000,"Symbol":"dia","Index":87},{"TotalEquity":0,"TotalDebt":0,"BasePrice":151800000,"Symbol":"dock","Index":88},{"TotalEquity":19453393384,"TotalDebt":0,"BasePrice":987000000,"Symbol":"dodo","Index":89},{"TotalEquity":25526548451614,"TotalDebt":0,"BasePrice":723900000,"Symbol":"doge","Index":90},{"TotalEquity":466049240950,"TotalDebt":0,"BasePrice":46820000000,"Symbol":"dot","Index":91},{"TotalEquity":69200000,"TotalDebt":0,"BasePrice":3138000000,"Symbol":"drep","Index":92},{"TotalEquity":0,"TotalDebt":0,"BasePrice":870000000,"Symbol":"dusk","Index":93},{"TotalEquity":45675816000,"TotalDebt":0,"BasePrice":12120000000,"Symbol":"dydx","Index":94},{"TotalEquity":241920370,"TotalDebt":0,"BasePrice":343400000000,"Symbol":"egld","Index":95},{"TotalEquity":3640000,"TotalDebt":0,"BasePrice":1691000000,"Symbol":"elf","Index":96},{"TotalEquity":200008070,"TotalDebt":0,"BasePrice":2556000000,"Symbol":"enj","Index":97},{"TotalEquity":836000,"TotalDebt":0,"BasePrice":115500000000,"Symbol":"ens","Index":98},{"TotalEquity":23489390223668,"TotalDebt":0,"BasePrice":8960000000,"Symbol":"eos","Index":99},{"TotalEquity":83358943947200,"TotalDebt":0,"BasePrice":2960000,"Symbol":"epx","Index":100},{"TotalEquity":1539180000,"TotalDebt":0,"BasePrice":17540000000,"Symbol":"ern","Index":101},{"TotalEquity":48056621250,"TotalDebt":0,"BasePrice":204100000000,"Symbol":"etc","Index":102},{"TotalEquity":28478224392,"TotalDebt":0,"BasePrice":12688000000000,"Symbol":"eth","Index":103},{"TotalEquity":21790805772,"TotalDebt":0,"BasePrice":10641000000,"Symbol":"eur","Index":104},{"TotalEquity":196200,"TotalDebt":0,"BasePrice":307000000000,"Symbol":"farm","Index":105},{"TotalEquity":31040000,"TotalDebt":0,"BasePrice":1240000000,"Symbol":"fet","Index":106},{"TotalEquity":26460000,"TotalDebt":0,"BasePrice":3354000000,"Symbol":"fida","Index":107},{"TotalEquity":5539231876,"TotalDebt":0,"BasePrice":33380000000,"Symbol":"fil","Index":108},{"TotalEquity":152000000,"TotalDebt":0,"BasePrice":275000000,"Symbol":"fio","Index":109},{"TotalEquity":1014252612,"TotalDebt":0,"BasePrice":16540000000,"Symbol":"firo","Index":110},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3313000000,"Symbol":"fis","Index":111},{"TotalEquity":0,"TotalDebt":0,"BasePrice":765931600,"Symbol":"flm","Index":112},{"TotalEquity":3688000,"TotalDebt":0,"BasePrice":6990000000,"Symbol":"flow","Index":113},{"TotalEquity":0,"TotalDebt":0,"BasePrice":5090000000,"Symbol":"flux","Index":114},{"TotalEquity":0,"TotalDebt":0,"BasePrice":162500000,"Symbol":"for","Index":115},{"TotalEquity":80000,"TotalDebt":0,"BasePrice":29400000000,"Symbol":"forth","Index":116},{"TotalEquity":14430200000,"TotalDebt":0,"BasePrice":1808000000,"Symbol":"front","Index":117},{"TotalEquity":26629480000,"TotalDebt":0,"BasePrice":2211000000,"Symbol":"ftm","Index":118},{"TotalEquity":16207428000,"TotalDebt":0,"BasePrice":9125000000,"Symbol":"ftt","Index":119},{"TotalEquity":679597613272,"TotalDebt":0,"BasePrice":61663700,"Symbol":"fun","Index":120},{"TotalEquity":0,"TotalDebt":0,"BasePrice":51410000000,"Symbol":"fxs","Index":121},{"TotalEquity":4110633550,"TotalDebt":0,"BasePrice":11540000000,"Symbol":"gal","Index":122},{"TotalEquity":2551466375170,"TotalDebt":0,"BasePrice":234700000,"Symbol":"gala","Index":123},{"TotalEquity":1252940134,"TotalDebt":0,"BasePrice":20260000000,"Symbol":"gas","Index":124},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1850000000,"Symbol":"glm","Index":125},{"TotalEquity":25058958996,"TotalDebt":0,"BasePrice":3195000000,"Symbol":"glmr","Index":126},{"TotalEquity":443980786672,"TotalDebt":0,"BasePrice":2588000000,"Symbol":"gmt","Index":127},{"TotalEquity":160000,"TotalDebt":0,"BasePrice":417300000000,"Symbol":"gmx","Index":128},{"TotalEquity":178800,"TotalDebt":0,"BasePrice":878736379100,"Symbol":"gno","Index":129},{"TotalEquity":6828000,"TotalDebt":0,"BasePrice":620000000,"Symbol":"grt","Index":130},{"TotalEquity":20784000,"TotalDebt":0,"BasePrice":13340000000,"Symbol":"gtc","Index":131},{"TotalEquity":94280000,"TotalDebt":0,"BasePrice":1494000000,"Symbol":"hard","Index":132},{"TotalEquity":336206273140,"TotalDebt":0,"BasePrice":391000000,"Symbol":"hbar","Index":133},{"TotalEquity":1791317190,"TotalDebt":0,"BasePrice":8870000000,"Symbol":"high","Index":134},{"TotalEquity":6485637600,"TotalDebt":0,"BasePrice":2700000000,"Symbol":"hive","Index":135},{"TotalEquity":1956144,"TotalDebt":0,"BasePrice":18400000000,"Symbol":"hnt","Index":136},{"TotalEquity":9587039140000,"TotalDebt":0,"BasePrice":14820000,"Symbol":"hot","Index":137},{"TotalEquity":223895102366,"TotalDebt":0,"BasePrice":38980000000,"Symbol":"icp","Index":138},{"TotalEquity":52168047570,"TotalDebt":0,"BasePrice":1516000000,"Symbol":"icx","Index":139},{"TotalEquity":15480000,"TotalDebt":0,"BasePrice":388000000,"Symbol":"idex","Index":140},{"TotalEquity":8400000,"TotalDebt":0,"BasePrice":388700000000,"Symbol":"ilv","Index":141},{"TotalEquity":12686368000,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"imx","Index":142},{"TotalEquity":139990936000,"TotalDebt":0,"BasePrice":13680000000,"Symbol":"inj","Index":143},{"TotalEquity":69430091021436,"TotalDebt":0,"BasePrice":72500000,"Symbol":"iost","Index":144},{"TotalEquity":71259628200,"TotalDebt":0,"BasePrice":1823000000,"Symbol":"iota","Index":145},{"TotalEquity":428000000,"TotalDebt":0,"BasePrice":221500000,"Symbol":"iotx","Index":146},{"TotalEquity":858126200,"TotalDebt":0,"BasePrice":43200000,"Symbol":"iq","Index":147},{"TotalEquity":8680000,"TotalDebt":0,"BasePrice":132174000,"Symbol":"iris","Index":148},{"TotalEquity":1889177748140,"TotalDebt":0,"BasePrice":37600000,"Symbol":"jasmy","Index":149},{"TotalEquity":2000,"TotalDebt":0,"BasePrice":1416000000,"Symbol":"joe","Index":150},{"TotalEquity":927921956,"TotalDebt":0,"BasePrice":201400000,"Symbol":"jst","Index":151},{"TotalEquity":560000,"TotalDebt":0,"BasePrice":6590000000,"Symbol":"kava","Index":152},{"TotalEquity":30527442000,"TotalDebt":0,"BasePrice":9480000000,"Symbol":"kda","Index":153},{"TotalEquity":7587760000,"TotalDebt":0,"BasePrice":29350000,"Symbol":"key","Index":154},{"TotalEquity":372181704,"TotalDebt":0,"BasePrice":1613000000,"Symbol":"klay","Index":155},{"TotalEquity":81600000,"TotalDebt":0,"BasePrice":1904661800,"Symbol":"kmd","Index":156},{"TotalEquity":493317080,"TotalDebt":0,"BasePrice":4940000000,"Symbol":"knc","Index":157},{"TotalEquity":1700000,"TotalDebt":0,"BasePrice":621600000000,"Symbol":"kp3r","Index":158},{"TotalEquity":27180,"TotalDebt":0,"BasePrice":250100000000,"Symbol":"ksm","Index":159},{"TotalEquity":1656679204,"TotalDebt":0,"BasePrice":30978000000,"Symbol":"lazio","Index":160},{"TotalEquity":295510852208,"TotalDebt":0,"BasePrice":15200000000,"Symbol":"ldo","Index":161},{"TotalEquity":1158728143570,"TotalDebt":0,"BasePrice":17230000,"Symbol":"lever","Index":162},{"TotalEquity":6505365672842,"TotalDebt":0,"BasePrice":52690000,"Symbol":"lina","Index":163},{"TotalEquity":8162369516,"TotalDebt":0,"BasePrice":57120000000,"Symbol":"link","Index":164},{"TotalEquity":95484000,"TotalDebt":0,"BasePrice":7220000000,"Symbol":"lit","Index":165},{"TotalEquity":12682220,"TotalDebt":0,"BasePrice":3632000000,"Symbol":"loka","Index":166},{"TotalEquity":0,"TotalDebt":0,"BasePrice":409400000,"Symbol":"loom","Index":167},{"TotalEquity":0,"TotalDebt":0,"BasePrice":44400000000,"Symbol":"lpt","Index":168},{"TotalEquity":10715077402,"TotalDebt":0,"BasePrice":2063000000,"Symbol":"lrc","Index":169},{"TotalEquity":8050236298,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"lsk","Index":170},{"TotalEquity":1122426768,"TotalDebt":0,"BasePrice":758900000000,"Symbol":"ltc","Index":171},{"TotalEquity":22654000,"TotalDebt":0,"BasePrice":710000000,"Symbol":"lto","Index":172},{"TotalEquity":16580624988,"TotalDebt":0,"BasePrice":13251000000,"Symbol":"luna","Index":173},{"TotalEquity":1705595428000000,"TotalDebt":0,"BasePrice":1560500,"Symbol":"lunc","Index":174},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4759000000,"Symbol":"magic","Index":175},{"TotalEquity":77632636722,"TotalDebt":0,"BasePrice":3278000000,"Symbol":"mana","Index":176},{"TotalEquity":1990776000,"TotalDebt":0,"BasePrice":23850000000,"Symbol":"mask","Index":177},{"TotalEquity":1076925578756,"TotalDebt":0,"BasePrice":7989000000,"Symbol":"matic","Index":178},{"TotalEquity":2785908800000,"TotalDebt":0,"BasePrice":23690000,"Symbol":"mbl","Index":179},{"TotalEquity":934922304,"TotalDebt":0,"BasePrice":3850000000,"Symbol":"mbox","Index":180},{"TotalEquity":13377446308,"TotalDebt":0,"BasePrice":2670000000,"Symbol":"mc","Index":181},{"TotalEquity":258144000,"TotalDebt":0,"BasePrice":201100000,"Symbol":"mdt","Index":182},{"TotalEquity":3081330908,"TotalDebt":0,"BasePrice":716000000,"Symbol":"mdx","Index":183},{"TotalEquity":32512116000,"TotalDebt":0,"BasePrice":4500000000,"Symbol":"mina","Index":184},{"TotalEquity":12110,"TotalDebt":0,"BasePrice":5400000000000,"Symbol":"mkr","Index":185},{"TotalEquity":0,"TotalDebt":0,"BasePrice":194100000000,"Symbol":"mln","Index":186},{"TotalEquity":132208000000,"TotalDebt":0,"BasePrice":8660000000,"Symbol":"mob","Index":187},{"TotalEquity":262072600,"TotalDebt":0,"BasePrice":63100000000,"Symbol":"movr","Index":188},{"TotalEquity":3096000,"TotalDebt":0,"BasePrice":7020000000,"Symbol":"mtl","Index":189},{"TotalEquity":5615144716,"TotalDebt":0,"BasePrice":15900000000,"Symbol":"near","Index":190},{"TotalEquity":6048000,"TotalDebt":0,"BasePrice":13000000000,"Symbol":"nebl","Index":191},{"TotalEquity":484605847032,"TotalDebt":0,"BasePrice":65600000000,"Symbol":"neo","Index":192},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7260000000,"Symbol":"nexo","Index":193},{"TotalEquity":2013960000,"TotalDebt":0,"BasePrice":862000000,"Symbol":"nkn","Index":194},{"TotalEquity":39400,"TotalDebt":0,"BasePrice":129300000000,"Symbol":"nmr","Index":195},{"TotalEquity":99676000,"TotalDebt":0,"BasePrice":1901000000,"Symbol":"nuls","Index":196},{"TotalEquity":1063446,"TotalDebt":0,"BasePrice":1906000000,"Symbol":"ocean","Index":197},{"TotalEquity":380000,"TotalDebt":0,"BasePrice":23960000000,"Symbol":"og","Index":198},{"TotalEquity":30491752,"TotalDebt":0,"BasePrice":906000000,"Symbol":"ogn","Index":199},{"TotalEquity":117360000,"TotalDebt":0,"BasePrice":289000000,"Symbol":"om","Index":200},{"TotalEquity":213392241236,"TotalDebt":0,"BasePrice":10630000000,"Symbol":"omg","Index":201},{"TotalEquity":561009012134,"TotalDebt":0,"BasePrice":106700000,"Symbol":"one","Index":202},{"TotalEquity":64315053780,"TotalDebt":0,"BasePrice":2177482600,"Symbol":"ong","Index":203},{"TotalEquity":4682530773048,"TotalDebt":0,"BasePrice":1609000000,"Symbol":"ont","Index":204},{"TotalEquity":893960000,"TotalDebt":0,"BasePrice":30800000,"Symbol":"ooki","Index":205},{"TotalEquity":383291200,"TotalDebt":0,"BasePrice":10840000000,"Symbol":"op","Index":206},{"TotalEquity":11568582000,"TotalDebt":0,"BasePrice":7680000000,"Symbol":"orn","Index":207},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"osmo","Index":208},{"TotalEquity":178748000,"TotalDebt":0,"BasePrice":687000000,"Symbol":"oxt","Index":209},{"TotalEquity":0,"TotalDebt":0,"BasePrice":18530000000000,"Symbol":"paxg","Index":210},{"TotalEquity":21441646500892,"TotalDebt":0,"BasePrice":215100000,"Symbol":"people","Index":211},{"TotalEquity":1648337620,"TotalDebt":0,"BasePrice":3831300000,"Symbol":"perp","Index":212},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1112000000,"Symbol":"pha","Index":213},{"TotalEquity":35466658000,"TotalDebt":0,"BasePrice":5237000000,"Symbol":"phb","Index":214},{"TotalEquity":28791180000,"TotalDebt":0,"BasePrice":1430000000,"Symbol":"pla","Index":215},{"TotalEquity":175000000,"TotalDebt":0,"BasePrice":1358592400,"Symbol":"pnt","Index":216},{"TotalEquity":3494881620000,"TotalDebt":0,"BasePrice":3570000000,"Symbol":"pols","Index":217},{"TotalEquity":74823148144,"TotalDebt":0,"BasePrice":1234000000,"Symbol":"polyx","Index":218},{"TotalEquity":493224786192,"TotalDebt":0,"BasePrice":77900000,"Symbol":"pond","Index":219},{"TotalEquity":72399098108,"TotalDebt":0,"BasePrice":25696000000,"Symbol":"porto","Index":220},{"TotalEquity":21005000000,"TotalDebt":0,"BasePrice":1273000000,"Symbol":"powr","Index":221},{"TotalEquity":0,"TotalDebt":0,"BasePrice":39200000000,"Symbol":"prom","Index":222},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"pros","Index":223},{"TotalEquity":2246200,"TotalDebt":0,"BasePrice":56400000000,"Symbol":"psg","Index":224},{"TotalEquity":57372118540,"TotalDebt":0,"BasePrice":3240000000,"Symbol":"pundix","Index":225},{"TotalEquity":172800,"TotalDebt":0,"BasePrice":29800000000,"Symbol":"pyr","Index":226},{"TotalEquity":152556846850,"TotalDebt":0,"BasePrice":65200000,"Symbol":"qi","Index":227},{"TotalEquity":703867724,"TotalDebt":0,"BasePrice":1118000000000,"Symbol":"qnt","Index":228},{"TotalEquity":209070344,"TotalDebt":0,"BasePrice":19610000000,"Symbol":"qtum","Index":229},{"TotalEquity":107668,"TotalDebt":0,"BasePrice":464000000000,"Symbol":"quick","Index":230},{"TotalEquity":15960000,"TotalDebt":0,"BasePrice":15330000000,"Symbol":"rad","Index":231},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1007000000,"Symbol":"rare","Index":232},{"TotalEquity":20536980000,"TotalDebt":0,"BasePrice":1502000000,"Symbol":"ray","Index":233},{"TotalEquity":2330100436820,"TotalDebt":0,"BasePrice":24230000,"Symbol":"reef","Index":234},{"TotalEquity":692913057840,"TotalDebt":0,"BasePrice":225000000,"Symbol":"rei","Index":235},{"TotalEquity":0,"TotalDebt":0,"BasePrice":630420000,"Symbol":"ren","Index":236},{"TotalEquity":223600190,"TotalDebt":0,"BasePrice":872000000,"Symbol":"req","Index":237},{"TotalEquity":18748000,"TotalDebt":0,"BasePrice":12427749000,"Symbol":"rlc","Index":238},{"TotalEquity":376358800,"TotalDebt":0,"BasePrice":4200000000,"Symbol":"rndr","Index":239},{"TotalEquity":2094224000,"TotalDebt":0,"BasePrice":370400000,"Symbol":"rose","Index":240},{"TotalEquity":119940000,"TotalDebt":0,"BasePrice":31690000,"Symbol":"rsr","Index":241},{"TotalEquity":269393997600,"TotalDebt":0,"BasePrice":13750000000,"Symbol":"rune","Index":242},{"TotalEquity":539117133400,"TotalDebt":0,"BasePrice":203000000,"Symbol":"rvn","Index":243},{"TotalEquity":154754594184,"TotalDebt":0,"BasePrice":4309000000,"Symbol":"sand","Index":244},{"TotalEquity":2790903662,"TotalDebt":0,"BasePrice":44700000000,"Symbol":"santos","Index":245},{"TotalEquity":353200000,"TotalDebt":0,"BasePrice":23600000,"Symbol":"sc","Index":246},{"TotalEquity":0,"TotalDebt":0,"BasePrice":6390000000,"Symbol":"scrt","Index":247},{"TotalEquity":493481218,"TotalDebt":0,"BasePrice":4033000000,"Symbol":"sfp","Index":248},{"TotalEquity":92811810818000000,"TotalDebt":0,"BasePrice":84300,"Symbol":"shib","Index":249},{"TotalEquity":338633610064,"TotalDebt":0,"BasePrice":227300000,"Symbol":"skl","Index":250},{"TotalEquity":17412372632502,"TotalDebt":0,"BasePrice":20900000,"Symbol":"slp","Index":251},{"TotalEquity":19400000,"TotalDebt":0,"BasePrice":4858000000,"Symbol":"snm","Index":252},{"TotalEquity":12518184,"TotalDebt":0,"BasePrice":16280000000,"Symbol":"snx","Index":253},{"TotalEquity":7697220542,"TotalDebt":0,"BasePrice":135100000000,"Symbol":"sol","Index":254},{"TotalEquity":43400244636,"TotalDebt":0,"BasePrice":5522000,"Symbol":"spell","Index":255},{"TotalEquity":145168230000,"TotalDebt":0,"BasePrice":1567800000,"Symbol":"srm","Index":256},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3544000000,"Symbol":"stg","Index":257},{"TotalEquity":1375707000000,"TotalDebt":0,"BasePrice":38110000,"Symbol":"stmx","Index":258},{"TotalEquity":8912432530,"TotalDebt":0,"BasePrice":2582000000,"Symbol":"storj","Index":259},{"TotalEquity":0,"TotalDebt":0,"BasePrice":275900000,"Symbol":"stpt","Index":260},{"TotalEquity":14047500,"TotalDebt":0,"BasePrice":4050000000,"Symbol":"strax","Index":261},{"TotalEquity":1423000,"TotalDebt":0,"BasePrice":2190000000,"Symbol":"stx","Index":262},{"TotalEquity":326978131392,"TotalDebt":0,"BasePrice":50400000,"Symbol":"sun","Index":263},{"TotalEquity":30595425600,"TotalDebt":0,"BasePrice":867000000,"Symbol":"super","Index":264},{"TotalEquity":128556304136,"TotalDebt":0,"BasePrice":10420000000,"Symbol":"sushi","Index":265},{"TotalEquity":1059292108408,"TotalDebt":0,"BasePrice":2130000000,"Symbol":"sxp","Index":266},{"TotalEquity":130320000,"TotalDebt":0,"BasePrice":1017000000,"Symbol":"sys","Index":267},{"TotalEquity":5172000,"TotalDebt":0,"BasePrice":163000000,"Symbol":"t","Index":268},{"TotalEquity":1030910000,"TotalDebt":0,"BasePrice":327000000,"Symbol":"tfuel","Index":269},{"TotalEquity":160460684218,"TotalDebt":0,"BasePrice":7590000000,"Symbol":"theta","Index":270},{"TotalEquity":198770314330,"TotalDebt":0,"BasePrice":2292000000,"Symbol":"tko","Index":271},{"TotalEquity":256387034218,"TotalDebt":0,"BasePrice":128600000,"Symbol":"tlm","Index":272},{"TotalEquity":2508400,"TotalDebt":0,"BasePrice":2762000000,"Symbol":"tomo","Index":273},{"TotalEquity":9400,"TotalDebt":0,"BasePrice":124800000000,"Symbol":"trb","Index":274},{"TotalEquity":33800000,"TotalDebt":0,"BasePrice":2070797400,"Symbol":"tribe","Index":275},{"TotalEquity":46160000,"TotalDebt":0,"BasePrice":25980000,"Symbol":"troy","Index":276},{"TotalEquity":0,"TotalDebt":0,"BasePrice":288071600,"Symbol":"tru","Index":277},{"TotalEquity":2043669562480,"TotalDebt":0,"BasePrice":524600000,"Symbol":"trx","Index":278},{"TotalEquity":63678800000,"TotalDebt":0,"BasePrice":301000000,"Symbol":"tvk","Index":279},{"TotalEquity":0,"TotalDebt":0,"BasePrice":14100000000,"Symbol":"twt","Index":280},{"TotalEquity":13980000,"TotalDebt":0,"BasePrice":15400000000,"Symbol":"uma","Index":281},{"TotalEquity":19120000,"TotalDebt":0,"BasePrice":39360000000,"Symbol":"unfi","Index":282},{"TotalEquity":11981756100,"TotalDebt":0,"BasePrice":55220000000,"Symbol":"uni","Index":283},{"TotalEquity":0,"TotalDebt":0,"BasePrice":10000650400,"Symbol":"usdc","Index":284},{"TotalEquity":12876907115652,"TotalDebt":0,"BasePrice":9997000900,"Symbol":"usdt","Index":285},{"TotalEquity":220063518946,"TotalDebt":0,"BasePrice":203321700,"Symbol":"ustc","Index":286},{"TotalEquity":0,"TotalDebt":0,"BasePrice":777000000,"Symbol":"utk","Index":287},{"TotalEquity":7430929587566,"TotalDebt":0,"BasePrice":164100000,"Symbol":"vet","Index":288},{"TotalEquity":169058297966,"TotalDebt":0,"BasePrice":694900000,"Symbol":"vib","Index":289},{"TotalEquity":252046634,"TotalDebt":0,"BasePrice":195000000,"Symbol":"vite","Index":290},{"TotalEquity":25254109536,"TotalDebt":0,"BasePrice":1671000000,"Symbol":"voxel","Index":291},{"TotalEquity":5153547313742,"TotalDebt":0,"BasePrice":9237200,"Symbol":"vtho","Index":292},{"TotalEquity":17493828000,"TotalDebt":0,"BasePrice":1658321600,"Symbol":"wan","Index":293},{"TotalEquity":2852616,"TotalDebt":0,"BasePrice":14130000000,"Symbol":"waves","Index":294},{"TotalEquity":20000180,"TotalDebt":0,"BasePrice":440000000,"Symbol":"waxp","Index":295},{"TotalEquity":24776160000000,"TotalDebt":0,"BasePrice":738000,"Symbol":"win","Index":296},{"TotalEquity":2370200,"TotalDebt":0,"BasePrice":52100000000,"Symbol":"wing","Index":297},{"TotalEquity":0,"TotalDebt":0,"BasePrice":80975707300,"Symbol":"wnxm","Index":298},{"TotalEquity":75262779600,"TotalDebt":0,"BasePrice":1347000000,"Symbol":"woo","Index":299},{"TotalEquity":415631596070,"TotalDebt":0,"BasePrice":1401000000,"Symbol":"wrx","Index":300},{"TotalEquity":183890000,"TotalDebt":0,"BasePrice":1916523600,"Symbol":"wtc","Index":301},{"TotalEquity":172906064000000,"TotalDebt":0,"BasePrice":246700,"Symbol":"xec","Index":302},{"TotalEquity":129072400,"TotalDebt":0,"BasePrice":291912400,"Symbol":"xem","Index":303},{"TotalEquity":152986398800,"TotalDebt":0,"BasePrice":751000000,"Symbol":"xlm","Index":304},{"TotalEquity":109317164,"TotalDebt":0,"BasePrice":1548000000000,"Symbol":"xmr","Index":305},{"TotalEquity":1954309930640,"TotalDebt":0,"BasePrice":3442000000,"Symbol":"xrp","Index":306},{"TotalEquity":388360923948,"TotalDebt":0,"BasePrice":7720000000,"Symbol":"xtz","Index":307},{"TotalEquity":45916405132400,"TotalDebt":0,"BasePrice":27200000,"Symbol":"xvg","Index":308},{"TotalEquity":1725600,"TotalDebt":0,"BasePrice":42900000000,"Symbol":"xvs","Index":309},{"TotalEquity":1940,"TotalDebt":0,"BasePrice":54420000000000,"Symbol":"yfi","Index":310},{"TotalEquity":393918000,"TotalDebt":0,"BasePrice":1749000000,"Symbol":"ygg","Index":311},{"TotalEquity":4124782260,"TotalDebt":0,"BasePrice":414000000000,"Symbol":"zec","Index":312},{"TotalEquity":1900092,"TotalDebt":0,"BasePrice":84900000000,"Symbol":"zen","Index":313},{"TotalEquity":2075635646560,"TotalDebt":0,"BasePrice":174100000,"Symbol":"zil","Index":314},{"TotalEquity":119194400,"TotalDebt":0,"BasePrice":1603000000,"Symbol":"zrx","Index":315}]
-```
-
-Each time after generating proof data, you need to query cex assets once, and then save this data, which will be used in the `CexAssetsInfo` field of the following `cex_config.json`.
-
-> Note: The proof.csv file here should be from the same batch as the saved asset proof data, otherwise the verification may fail.
-
-#### Configuration File
-
-cex_config.json is the configuration file for verifying the exchange assets.
-
-```Plaintext
-{
-  "ProofCsv": "./config/proof.csv",
-  "ZkKeyVKDirectoryAndPrefix": "./zkpor864",
-  "CexAssetsInfo": [{"TotalEquity":10049232946,"TotalDebt":0,"BasePrice":3960000000,"Symbol":"1inch","Index":0},{"TotalEquity":421836,"TotalDebt":0,"BasePrice":564000000000,"Symbol":"aave","Index":1},{"TotalEquity":0,"TotalDebt":0,"BasePrice":79800000,"Symbol":"ach","Index":2},{"TotalEquity":3040000,"TotalDebt":0,"BasePrice":25460000000,"Symbol":"acm","Index":3},{"TotalEquity":17700050162640,"TotalDebt":0,"BasePrice":2784000000,"Symbol":"ada","Index":4},{"TotalEquity":485400000,"TotalDebt":0,"BasePrice":1182000000,"Symbol":"adx","Index":5},{"TotalEquity":0,"TotalDebt":0,"BasePrice":907000000,"Symbol":"aergo","Index":6},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2720000000,"Symbol":"agld","Index":7},{"TotalEquity":1969000000,"TotalDebt":0,"BasePrice":30500000,"Symbol":"akro","Index":8},{"TotalEquity":0,"TotalDebt":0,"BasePrice":141000000000,"Symbol":"alcx","Index":9},{"TotalEquity":15483340912,"TotalDebt":0,"BasePrice":1890000000,"Symbol":"algo","Index":10},{"TotalEquity":3187400,"TotalDebt":0,"BasePrice":11350000000,"Symbol":"alice","Index":11},{"TotalEquity":1760000,"TotalDebt":0,"BasePrice":2496000000,"Symbol":"alpaca","Index":12},{"TotalEquity":84596857600,"TotalDebt":0,"BasePrice":785000000,"Symbol":"alpha","Index":13},{"TotalEquity":3672090936,"TotalDebt":0,"BasePrice":20849000000,"Symbol":"alpine","Index":14},{"TotalEquity":198200000,"TotalDebt":0,"BasePrice":132600000,"Symbol":"amb","Index":15},{"TotalEquity":53800000,"TotalDebt":0,"BasePrice":32200000,"Symbol":"amp","Index":16},{"TotalEquity":3291606210,"TotalDebt":0,"BasePrice":340300000,"Symbol":"anc","Index":17},{"TotalEquity":192954000,"TotalDebt":0,"BasePrice":166000000,"Symbol":"ankr","Index":18},{"TotalEquity":2160000,"TotalDebt":0,"BasePrice":20940000000,"Symbol":"ant","Index":19},{"TotalEquity":5995002000,"TotalDebt":0,"BasePrice":40370000000,"Symbol":"ape","Index":20},{"TotalEquity":0,"TotalDebt":0,"BasePrice":11110000000,"Symbol":"api3","Index":21},{"TotalEquity":53728000,"TotalDebt":0,"BasePrice":38560000000,"Symbol":"apt","Index":22},{"TotalEquity":0,"TotalDebt":0,"BasePrice":68500000000,"Symbol":"ar","Index":23},{"TotalEquity":55400000,"TotalDebt":0,"BasePrice":667648400,"Symbol":"ardr","Index":24},{"TotalEquity":8320000,"TotalDebt":0,"BasePrice":266200000,"Symbol":"arpa","Index":25},{"TotalEquity":18820000,"TotalDebt":0,"BasePrice":401000000,"Symbol":"astr","Index":26},{"TotalEquity":13205405410,"TotalDebt":0,"BasePrice":934000000,"Symbol":"ata","Index":27},{"TotalEquity":7016230960,"TotalDebt":0,"BasePrice":102450000000,"Symbol":"atom","Index":28},{"TotalEquity":2619441828,"TotalDebt":0,"BasePrice":40900000000,"Symbol":"auction","Index":29},{"TotalEquity":9640198,"TotalDebt":0,"BasePrice":1432000000,"Symbol":"audio","Index":30},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2306000000000,"Symbol":"auto","Index":31},{"TotalEquity":886400,"TotalDebt":0,"BasePrice":5390000000,"Symbol":"ava","Index":32},{"TotalEquity":2883562350,"TotalDebt":0,"BasePrice":117800000000,"Symbol":"avax","Index":33},{"TotalEquity":1864300912,"TotalDebt":0,"BasePrice":68200000000,"Symbol":"axs","Index":34},{"TotalEquity":843870,"TotalDebt":0,"BasePrice":23700000000,"Symbol":"badger","Index":35},{"TotalEquity":114869291528,"TotalDebt":0,"BasePrice":1379000000,"Symbol":"bake","Index":36},{"TotalEquity":95400,"TotalDebt":0,"BasePrice":54110000000,"Symbol":"bal","Index":37},{"TotalEquity":123113880,"TotalDebt":0,"BasePrice":14610000000,"Symbol":"band","Index":38},{"TotalEquity":0,"TotalDebt":0,"BasePrice":37100000000,"Symbol":"bar","Index":39},{"TotalEquity":73090049578,"TotalDebt":0,"BasePrice":1774000000,"Symbol":"bat","Index":40},{"TotalEquity":28891300,"TotalDebt":0,"BasePrice":1017000000000,"Symbol":"bch","Index":41},{"TotalEquity":19889623294,"TotalDebt":0,"BasePrice":4130000000,"Symbol":"bel","Index":42},{"TotalEquity":374840602180,"TotalDebt":0,"BasePrice":699700000,"Symbol":"beta","Index":43},{"TotalEquity":270294580,"TotalDebt":0,"BasePrice":12290900000000,"Symbol":"beth","Index":44},{"TotalEquity":35692901600,"TotalDebt":0,"BasePrice":2730000000,"Symbol":"bico","Index":45},{"TotalEquity":0,"TotalDebt":0,"BasePrice":639000,"Symbol":"bidr","Index":46},{"TotalEquity":240200000,"TotalDebt":0,"BasePrice":538000000,"Symbol":"blz","Index":47},{"TotalEquity":83614634622,"TotalDebt":0,"BasePrice":2599000000000,"Symbol":"bnb","Index":48},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3490000000,"Symbol":"bnt","Index":49},{"TotalEquity":1560,"TotalDebt":0,"BasePrice":592000000000,"Symbol":"bnx","Index":50},{"TotalEquity":2076000,"TotalDebt":0,"BasePrice":32630000000,"Symbol":"bond","Index":51},{"TotalEquity":44699589660,"TotalDebt":0,"BasePrice":1768000000,"Symbol":"bsw","Index":52},{"TotalEquity":291716078,"TotalDebt":0,"BasePrice":169453900000000,"Symbol":"btc","Index":53},{"TotalEquity":15500321300000000,"TotalDebt":0,"BasePrice":6300,"Symbol":"bttc","Index":54},{"TotalEquity":70771546756,"TotalDebt":0,"BasePrice":5240000000,"Symbol":"burger","Index":55},{"TotalEquity":12058907297354,"TotalDebt":1476223055432,"BasePrice":10000000000,"Symbol":"busd","Index":56},{"TotalEquity":34716440000,"TotalDebt":0,"BasePrice":1647000000,"Symbol":"c98","Index":57},{"TotalEquity":1541723702,"TotalDebt":0,"BasePrice":33140000000,"Symbol":"cake","Index":58},{"TotalEquity":2112000,"TotalDebt":0,"BasePrice":5200000000,"Symbol":"celo","Index":59},{"TotalEquity":317091540000,"TotalDebt":0,"BasePrice":101000000,"Symbol":"celr","Index":60},{"TotalEquity":137111365560,"TotalDebt":0,"BasePrice":228000000,"Symbol":"cfx","Index":61},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1820000000,"Symbol":"chess","Index":62},{"TotalEquity":258540000,"TotalDebt":0,"BasePrice":1140000000,"Symbol":"chr","Index":63},{"TotalEquity":289172288882,"TotalDebt":0,"BasePrice":1099000000,"Symbol":"chz","Index":64},{"TotalEquity":0,"TotalDebt":0,"BasePrice":25100000,"Symbol":"ckb","Index":65},{"TotalEquity":1851135024806,"TotalDebt":0,"BasePrice":535500000,"Symbol":"clv","Index":66},{"TotalEquity":155010000,"TotalDebt":0,"BasePrice":5202000000,"Symbol":"cocos","Index":67},{"TotalEquity":52093390,"TotalDebt":0,"BasePrice":335800000000,"Symbol":"comp","Index":68},{"TotalEquity":13991592000,"TotalDebt":0,"BasePrice":44500000,"Symbol":"cos","Index":69},{"TotalEquity":51240788068,"TotalDebt":0,"BasePrice":557000000,"Symbol":"coti","Index":70},{"TotalEquity":0,"TotalDebt":0,"BasePrice":107900000000,"Symbol":"cream","Index":71},{"TotalEquity":15940224,"TotalDebt":0,"BasePrice":5470000000,"Symbol":"crv","Index":72},{"TotalEquity":2336000,"TotalDebt":0,"BasePrice":7450000000,"Symbol":"ctk","Index":73},{"TotalEquity":88860000,"TotalDebt":0,"BasePrice":1059000000,"Symbol":"ctsi","Index":74},{"TotalEquity":440400000,"TotalDebt":0,"BasePrice":1763000000,"Symbol":"ctxc","Index":75},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3375000000,"Symbol":"cvp","Index":76},{"TotalEquity":176202,"TotalDebt":0,"BasePrice":30810000000,"Symbol":"cvx","Index":77},{"TotalEquity":0,"TotalDebt":0,"BasePrice":9999000100,"Symbol":"dai","Index":78},{"TotalEquity":90702266836,"TotalDebt":0,"BasePrice":1293500000,"Symbol":"dar","Index":79},{"TotalEquity":29386961406,"TotalDebt":0,"BasePrice":458300000000,"Symbol":"dash","Index":80},{"TotalEquity":1628888000,"TotalDebt":0,"BasePrice":235500000,"Symbol":"data","Index":81},{"TotalEquity":0,"TotalDebt":0,"BasePrice":186229836100,"Symbol":"dcr","Index":82},{"TotalEquity":0,"TotalDebt":0,"BasePrice":15920000000,"Symbol":"dego","Index":83},{"TotalEquity":26105549312822,"TotalDebt":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalDebt":0,"BasePrice":24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalDebt":0,"BasePrice":82200000,"Symbol":"dgb","Index":86},{"TotalEquity":1120000,"TotalDebt":0,"BasePrice":2970000000,"Symbol":"dia","Index":87},{"TotalEquity":0,"TotalDebt":0,"BasePrice":151800000,"Symbol":"dock","Index":88},{"TotalEquity":19453393384,"TotalDebt":0,"BasePrice":987000000,"Symbol":"dodo","Index":89},{"TotalEquity":25526548451614,"TotalDebt":0,"BasePrice":723900000,"Symbol":"doge","Index":90},{"TotalEquity":466049240950,"TotalDebt":0,"BasePrice":46820000000,"Symbol":"dot","Index":91},{"TotalEquity":69200000,"TotalDebt":0,"BasePrice":3138000000,"Symbol":"drep","Index":92},{"TotalEquity":0,"TotalDebt":0,"BasePrice":870000000,"Symbol":"dusk","Index":93},{"TotalEquity":45675816000,"TotalDebt":0,"BasePrice":12120000000,"Symbol":"dydx","Index":94},{"TotalEquity":241920370,"TotalDebt":0,"BasePrice":343400000000,"Symbol":"egld","Index":95},{"TotalEquity":3640000,"TotalDebt":0,"BasePrice":1691000000,"Symbol":"elf","Index":96},{"TotalEquity":200008070,"TotalDebt":0,"BasePrice":2556000000,"Symbol":"enj","Index":97},{"TotalEquity":836000,"TotalDebt":0,"BasePrice":115500000000,"Symbol":"ens","Index":98},{"TotalEquity":23489390223668,"TotalDebt":0,"BasePrice":8960000000,"Symbol":"eos","Index":99},{"TotalEquity":83358943947200,"TotalDebt":0,"BasePrice":2960000,"Symbol":"epx","Index":100},{"TotalEquity":1539180000,"TotalDebt":0,"BasePrice":17540000000,"Symbol":"ern","Index":101},{"TotalEquity":48056621250,"TotalDebt":0,"BasePrice":204100000000,"Symbol":"etc","Index":102},{"TotalEquity":28478224392,"TotalDebt":0,"BasePrice":12688000000000,"Symbol":"eth","Index":103},{"TotalEquity":21790805772,"TotalDebt":0,"BasePrice":10641000000,"Symbol":"eur","Index":104},{"TotalEquity":196200,"TotalDebt":0,"BasePrice":307000000000,"Symbol":"farm","Index":105},{"TotalEquity":31040000,"TotalDebt":0,"BasePrice":1240000000,"Symbol":"fet","Index":106},{"TotalEquity":26460000,"TotalDebt":0,"BasePrice":3354000000,"Symbol":"fida","Index":107},{"TotalEquity":5539231876,"TotalDebt":0,"BasePrice":33380000000,"Symbol":"fil","Index":108},{"TotalEquity":152000000,"TotalDebt":0,"BasePrice":275000000,"Symbol":"fio","Index":109},{"TotalEquity":1014252612,"TotalDebt":0,"BasePrice":16540000000,"Symbol":"firo","Index":110},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3313000000,"Symbol":"fis","Index":111},{"TotalEquity":0,"TotalDebt":0,"BasePrice":765931600,"Symbol":"flm","Index":112},{"TotalEquity":3688000,"TotalDebt":0,"BasePrice":6990000000,"Symbol":"flow","Index":113},{"TotalEquity":0,"TotalDebt":0,"BasePrice":5090000000,"Symbol":"flux","Index":114},{"TotalEquity":0,"TotalDebt":0,"BasePrice":162500000,"Symbol":"for","Index":115},{"TotalEquity":80000,"TotalDebt":0,"BasePrice":29400000000,"Symbol":"forth","Index":116},{"TotalEquity":14430200000,"TotalDebt":0,"BasePrice":1808000000,"Symbol":"front","Index":117},{"TotalEquity":26629480000,"TotalDebt":0,"BasePrice":2211000000,"Symbol":"ftm","Index":118},{"TotalEquity":16207428000,"TotalDebt":0,"BasePrice":9125000000,"Symbol":"ftt","Index":119},{"TotalEquity":679597613272,"TotalDebt":0,"BasePrice":61663700,"Symbol":"fun","Index":120},{"TotalEquity":0,"TotalDebt":0,"BasePrice":51410000000,"Symbol":"fxs","Index":121},{"TotalEquity":4110633550,"TotalDebt":0,"BasePrice":11540000000,"Symbol":"gal","Index":122},{"TotalEquity":2551466375170,"TotalDebt":0,"BasePrice":234700000,"Symbol":"gala","Index":123},{"TotalEquity":1252940134,"TotalDebt":0,"BasePrice":20260000000,"Symbol":"gas","Index":124},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1850000000,"Symbol":"glm","Index":125},{"TotalEquity":25058958996,"TotalDebt":0,"BasePrice":3195000000,"Symbol":"glmr","Index":126},{"TotalEquity":443980786672,"TotalDebt":0,"BasePrice":2588000000,"Symbol":"gmt","Index":127},{"TotalEquity":160000,"TotalDebt":0,"BasePrice":417300000000,"Symbol":"gmx","Index":128},{"TotalEquity":178800,"TotalDebt":0,"BasePrice":878736379100,"Symbol":"gno","Index":129},{"TotalEquity":6828000,"TotalDebt":0,"BasePrice":620000000,"Symbol":"grt","Index":130},{"TotalEquity":20784000,"TotalDebt":0,"BasePrice":13340000000,"Symbol":"gtc","Index":131},{"TotalEquity":94280000,"TotalDebt":0,"BasePrice":1494000000,"Symbol":"hard","Index":132},{"TotalEquity":336206273140,"TotalDebt":0,"BasePrice":391000000,"Symbol":"hbar","Index":133},{"TotalEquity":1791317190,"TotalDebt":0,"BasePrice":8870000000,"Symbol":"high","Index":134},{"TotalEquity":6485637600,"TotalDebt":0,"BasePrice":2700000000,"Symbol":"hive","Index":135},{"TotalEquity":1956144,"TotalDebt":0,"BasePrice":18400000000,"Symbol":"hnt","Index":136},{"TotalEquity":9587039140000,"TotalDebt":0,"BasePrice":14820000,"Symbol":"hot","Index":137},{"TotalEquity":223895102366,"TotalDebt":0,"BasePrice":38980000000,"Symbol":"icp","Index":138},{"TotalEquity":52168047570,"TotalDebt":0,"BasePrice":1516000000,"Symbol":"icx","Index":139},{"TotalEquity":15480000,"TotalDebt":0,"BasePrice":388000000,"Symbol":"idex","Index":140},{"TotalEquity":8400000,"TotalDebt":0,"BasePrice":388700000000,"Symbol":"ilv","Index":141},{"TotalEquity":12686368000,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"imx","Index":142},{"TotalEquity":139990936000,"TotalDebt":0,"BasePrice":13680000000,"Symbol":"inj","Index":143},{"TotalEquity":69430091021436,"TotalDebt":0,"BasePrice":72500000,"Symbol":"iost","Index":144},{"TotalEquity":71259628200,"TotalDebt":0,"BasePrice":1823000000,"Symbol":"iota","Index":145},{"TotalEquity":428000000,"TotalDebt":0,"BasePrice":221500000,"Symbol":"iotx","Index":146},{"TotalEquity":858126200,"TotalDebt":0,"BasePrice":43200000,"Symbol":"iq","Index":147},{"TotalEquity":8680000,"TotalDebt":0,"BasePrice":132174000,"Symbol":"iris","Index":148},{"TotalEquity":1889177748140,"TotalDebt":0,"BasePrice":37600000,"Symbol":"jasmy","Index":149},{"TotalEquity":2000,"TotalDebt":0,"BasePrice":1416000000,"Symbol":"joe","Index":150},{"TotalEquity":927921956,"TotalDebt":0,"BasePrice":201400000,"Symbol":"jst","Index":151},{"TotalEquity":560000,"TotalDebt":0,"BasePrice":6590000000,"Symbol":"kava","Index":152},{"TotalEquity":30527442000,"TotalDebt":0,"BasePrice":9480000000,"Symbol":"kda","Index":153},{"TotalEquity":7587760000,"TotalDebt":0,"BasePrice":29350000,"Symbol":"key","Index":154},{"TotalEquity":372181704,"TotalDebt":0,"BasePrice":1613000000,"Symbol":"klay","Index":155},{"TotalEquity":81600000,"TotalDebt":0,"BasePrice":1904661800,"Symbol":"kmd","Index":156},{"TotalEquity":493317080,"TotalDebt":0,"BasePrice":4940000000,"Symbol":"knc","Index":157},{"TotalEquity":1700000,"TotalDebt":0,"BasePrice":621600000000,"Symbol":"kp3r","Index":158},{"TotalEquity":27180,"TotalDebt":0,"BasePrice":250100000000,"Symbol":"ksm","Index":159},{"TotalEquity":1656679204,"TotalDebt":0,"BasePrice":30978000000,"Symbol":"lazio","Index":160},{"TotalEquity":295510852208,"TotalDebt":0,"BasePrice":15200000000,"Symbol":"ldo","Index":161},{"TotalEquity":1158728143570,"TotalDebt":0,"BasePrice":17230000,"Symbol":"lever","Index":162},{"TotalEquity":6505365672842,"TotalDebt":0,"BasePrice":52690000,"Symbol":"lina","Index":163},{"TotalEquity":8162369516,"TotalDebt":0,"BasePrice":57120000000,"Symbol":"link","Index":164},{"TotalEquity":95484000,"TotalDebt":0,"BasePrice":7220000000,"Symbol":"lit","Index":165},{"TotalEquity":12682220,"TotalDebt":0,"BasePrice":3632000000,"Symbol":"loka","Index":166},{"TotalEquity":0,"TotalDebt":0,"BasePrice":409400000,"Symbol":"loom","Index":167},{"TotalEquity":0,"TotalDebt":0,"BasePrice":44400000000,"Symbol":"lpt","Index":168},{"TotalEquity":10715077402,"TotalDebt":0,"BasePrice":2063000000,"Symbol":"lrc","Index":169},{"TotalEquity":8050236298,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"lsk","Index":170},{"TotalEquity":1122426768,"TotalDebt":0,"BasePrice":758900000000,"Symbol":"ltc","Index":171},{"TotalEquity":22654000,"TotalDebt":0,"BasePrice":710000000,"Symbol":"lto","Index":172},{"TotalEquity":16580624988,"TotalDebt":0,"BasePrice":13251000000,"Symbol":"luna","Index":173},{"TotalEquity":1705595428000000,"TotalDebt":0,"BasePrice":1560500,"Symbol":"lunc","Index":174},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4759000000,"Symbol":"magic","Index":175},{"TotalEquity":77632636722,"TotalDebt":0,"BasePrice":3278000000,"Symbol":"mana","Index":176},{"TotalEquity":1990776000,"TotalDebt":0,"BasePrice":23850000000,"Symbol":"mask","Index":177},{"TotalEquity":1076925578756,"TotalDebt":0,"BasePrice":7989000000,"Symbol":"matic","Index":178},{"TotalEquity":2785908800000,"TotalDebt":0,"BasePrice":23690000,"Symbol":"mbl","Index":179},{"TotalEquity":934922304,"TotalDebt":0,"BasePrice":3850000000,"Symbol":"mbox","Index":180},{"TotalEquity":13377446308,"TotalDebt":0,"BasePrice":2670000000,"Symbol":"mc","Index":181},{"TotalEquity":258144000,"TotalDebt":0,"BasePrice":201100000,"Symbol":"mdt","Index":182},{"TotalEquity":3081330908,"TotalDebt":0,"BasePrice":716000000,"Symbol":"mdx","Index":183},{"TotalEquity":32512116000,"TotalDebt":0,"BasePrice":4500000000,"Symbol":"mina","Index":184},{"TotalEquity":12110,"TotalDebt":0,"BasePrice":5400000000000,"Symbol":"mkr","Index":185},{"TotalEquity":0,"TotalDebt":0,"BasePrice":194100000000,"Symbol":"mln","Index":186},{"TotalEquity":132208000000,"TotalDebt":0,"BasePrice":8660000000,"Symbol":"mob","Index":187},{"TotalEquity":262072600,"TotalDebt":0,"BasePrice":63100000000,"Symbol":"movr","Index":188},{"TotalEquity":3096000,"TotalDebt":0,"BasePrice":7020000000,"Symbol":"mtl","Index":189},{"TotalEquity":5615144716,"TotalDebt":0,"BasePrice":15900000000,"Symbol":"near","Index":190},{"TotalEquity":6048000,"TotalDebt":0,"BasePrice":13000000000,"Symbol":"nebl","Index":191},{"TotalEquity":484605847032,"TotalDebt":0,"BasePrice":65600000000,"Symbol":"neo","Index":192},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7260000000,"Symbol":"nexo","Index":193},{"TotalEquity":2013960000,"TotalDebt":0,"BasePrice":862000000,"Symbol":"nkn","Index":194},{"TotalEquity":39400,"TotalDebt":0,"BasePrice":129300000000,"Symbol":"nmr","Index":195},{"TotalEquity":99676000,"TotalDebt":0,"BasePrice":1901000000,"Symbol":"nuls","Index":196},{"TotalEquity":1063446,"TotalDebt":0,"BasePrice":1906000000,"Symbol":"ocean","Index":197},{"TotalEquity":380000,"TotalDebt":0,"BasePrice":23960000000,"Symbol":"og","Index":198},{"TotalEquity":30491752,"TotalDebt":0,"BasePrice":906000000,"Symbol":"ogn","Index":199},{"TotalEquity":117360000,"TotalDebt":0,"BasePrice":289000000,"Symbol":"om","Index":200},{"TotalEquity":213392241236,"TotalDebt":0,"BasePrice":10630000000,"Symbol":"omg","Index":201},{"TotalEquity":561009012134,"TotalDebt":0,"BasePrice":106700000,"Symbol":"one","Index":202},{"TotalEquity":64315053780,"TotalDebt":0,"BasePrice":2177482600,"Symbol":"ong","Index":203},{"TotalEquity":4682530773048,"TotalDebt":0,"BasePrice":1609000000,"Symbol":"ont","Index":204},{"TotalEquity":893960000,"TotalDebt":0,"BasePrice":30800000,"Symbol":"ooki","Index":205},{"TotalEquity":383291200,"TotalDebt":0,"BasePrice":10840000000,"Symbol":"op","Index":206},{"TotalEquity":11568582000,"TotalDebt":0,"BasePrice":7680000000,"Symbol":"orn","Index":207},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"osmo","Index":208},{"TotalEquity":178748000,"TotalDebt":0,"BasePrice":687000000,"Symbol":"oxt","Index":209},{"TotalEquity":0,"TotalDebt":0,"BasePrice":18530000000000,"Symbol":"paxg","Index":210},{"TotalEquity":21441646500892,"TotalDebt":0,"BasePrice":215100000,"Symbol":"people","Index":211},{"TotalEquity":1648337620,"TotalDebt":0,"BasePrice":3831300000,"Symbol":"perp","Index":212},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1112000000,"Symbol":"pha","Index":213},{"TotalEquity":35466658000,"TotalDebt":0,"BasePrice":5237000000,"Symbol":"phb","Index":214},{"TotalEquity":28791180000,"TotalDebt":0,"BasePrice":1430000000,"Symbol":"pla","Index":215},{"TotalEquity":175000000,"TotalDebt":0,"BasePrice":1358592400,"Symbol":"pnt","Index":216},{"TotalEquity":3494881620000,"TotalDebt":0,"BasePrice":3570000000,"Symbol":"pols","Index":217},{"TotalEquity":74823148144,"TotalDebt":0,"BasePrice":1234000000,"Symbol":"polyx","Index":218},{"TotalEquity":493224786192,"TotalDebt":0,"BasePrice":77900000,"Symbol":"pond","Index":219},{"TotalEquity":72399098108,"TotalDebt":0,"BasePrice":25696000000,"Symbol":"porto","Index":220},{"TotalEquity":21005000000,"TotalDebt":0,"BasePrice":1273000000,"Symbol":"powr","Index":221},{"TotalEquity":0,"TotalDebt":0,"BasePrice":39200000000,"Symbol":"prom","Index":222},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"pros","Index":223},{"TotalEquity":2246200,"TotalDebt":0,"BasePrice":56400000000,"Symbol":"psg","Index":224},{"TotalEquity":57372118540,"TotalDebt":0,"BasePrice":3240000000,"Symbol":"pundix","Index":225},{"TotalEquity":172800,"TotalDebt":0,"BasePrice":29800000000,"Symbol":"pyr","Index":226},{"TotalEquity":152556846850,"TotalDebt":0,"BasePrice":65200000,"Symbol":"qi","Index":227},{"TotalEquity":703867724,"TotalDebt":0,"BasePrice":1118000000000,"Symbol":"qnt","Index":228},{"TotalEquity":209070344,"TotalDebt":0,"BasePrice":19610000000,"Symbol":"qtum","Index":229},{"TotalEquity":107668,"TotalDebt":0,"BasePrice":464000000000,"Symbol":"quick","Index":230},{"TotalEquity":15960000,"TotalDebt":0,"BasePrice":15330000000,"Symbol":"rad","Index":231},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1007000000,"Symbol":"rare","Index":232},{"TotalEquity":20536980000,"TotalDebt":0,"BasePrice":1502000000,"Symbol":"ray","Index":233},{"TotalEquity":2330100436820,"TotalDebt":0,"BasePrice":24230000,"Symbol":"reef","Index":234},{"TotalEquity":692913057840,"TotalDebt":0,"BasePrice":225000000,"Symbol":"rei","Index":235},{"TotalEquity":0,"TotalDebt":0,"BasePrice":630420000,"Symbol":"ren","Index":236},{"TotalEquity":223600190,"TotalDebt":0,"BasePrice":872000000,"Symbol":"req","Index":237},{"TotalEquity":18748000,"TotalDebt":0,"BasePrice":12427749000,"Symbol":"rlc","Index":238},{"TotalEquity":376358800,"TotalDebt":0,"BasePrice":4200000000,"Symbol":"rndr","Index":239},{"TotalEquity":2094224000,"TotalDebt":0,"BasePrice":370400000,"Symbol":"rose","Index":240},{"TotalEquity":119940000,"TotalDebt":0,"BasePrice":31690000,"Symbol":"rsr","Index":241},{"TotalEquity":269393997600,"TotalDebt":0,"BasePrice":13750000000,"Symbol":"rune","Index":242},{"TotalEquity":539117133400,"TotalDebt":0,"BasePrice":203000000,"Symbol":"rvn","Index":243},{"TotalEquity":154754594184,"TotalDebt":0,"BasePrice":4309000000,"Symbol":"sand","Index":244},{"TotalEquity":2790903662,"TotalDebt":0,"BasePrice":44700000000,"Symbol":"santos","Index":245},{"TotalEquity":353200000,"TotalDebt":0,"BasePrice":23600000,"Symbol":"sc","Index":246},{"TotalEquity":0,"TotalDebt":0,"BasePrice":6390000000,"Symbol":"scrt","Index":247},{"TotalEquity":493481218,"TotalDebt":0,"BasePrice":4033000000,"Symbol":"sfp","Index":248},{"TotalEquity":92811810818000000,"TotalDebt":0,"BasePrice":84300,"Symbol":"shib","Index":249},{"TotalEquity":338633610064,"TotalDebt":0,"BasePrice":227300000,"Symbol":"skl","Index":250},{"TotalEquity":17412372632502,"TotalDebt":0,"BasePrice":20900000,"Symbol":"slp","Index":251},{"TotalEquity":19400000,"TotalDebt":0,"BasePrice":4858000000,"Symbol":"snm","Index":252},{"TotalEquity":12518184,"TotalDebt":0,"BasePrice":16280000000,"Symbol":"snx","Index":253},{"TotalEquity":7697220542,"TotalDebt":0,"BasePrice":135100000000,"Symbol":"sol","Index":254},{"TotalEquity":43400244636,"TotalDebt":0,"BasePrice":5522000,"Symbol":"spell","Index":255},{"TotalEquity":145168230000,"TotalDebt":0,"BasePrice":1567800000,"Symbol":"srm","Index":256},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3544000000,"Symbol":"stg","Index":257},{"TotalEquity":1375707000000,"TotalDebt":0,"BasePrice":38110000,"Symbol":"stmx","Index":258},{"TotalEquity":8912432530,"TotalDebt":0,"BasePrice":2582000000,"Symbol":"storj","Index":259},{"TotalEquity":0,"TotalDebt":0,"BasePrice":275900000,"Symbol":"stpt","Index":260},{"TotalEquity":14047500,"TotalDebt":0,"BasePrice":4050000000,"Symbol":"strax","Index":261},{"TotalEquity":1423000,"TotalDebt":0,"BasePrice":2190000000,"Symbol":"stx","Index":262},{"TotalEquity":326978131392,"TotalDebt":0,"BasePrice":50400000,"Symbol":"sun","Index":263},{"TotalEquity":30595425600,"TotalDebt":0,"BasePrice":867000000,"Symbol":"super","Index":264},{"TotalEquity":128556304136,"TotalDebt":0,"BasePrice":10420000000,"Symbol":"sushi","Index":265},{"TotalEquity":1059292108408,"TotalDebt":0,"BasePrice":2130000000,"Symbol":"sxp","Index":266},{"TotalEquity":130320000,"TotalDebt":0,"BasePrice":1017000000,"Symbol":"sys","Index":267},{"TotalEquity":5172000,"TotalDebt":0,"BasePrice":163000000,"Symbol":"t","Index":268},{"TotalEquity":1030910000,"TotalDebt":0,"BasePrice":327000000,"Symbol":"tfuel","Index":269},{"TotalEquity":160460684218,"TotalDebt":0,"BasePrice":7590000000,"Symbol":"theta","Index":270},{"TotalEquity":198770314330,"TotalDebt":0,"BasePrice":2292000000,"Symbol":"tko","Index":271},{"TotalEquity":256387034218,"TotalDebt":0,"BasePrice":128600000,"Symbol":"tlm","Index":272},{"TotalEquity":2508400,"TotalDebt":0,"BasePrice":2762000000,"Symbol":"tomo","Index":273},{"TotalEquity":9400,"TotalDebt":0,"BasePrice":124800000000,"Symbol":"trb","Index":274},{"TotalEquity":33800000,"TotalDebt":0,"BasePrice":2070797400,"Symbol":"tribe","Index":275},{"TotalEquity":46160000,"TotalDebt":0,"BasePrice":25980000,"Symbol":"troy","Index":276},{"TotalEquity":0,"TotalDebt":0,"BasePrice":288071600,"Symbol":"tru","Index":277},{"TotalEquity":2043669562480,"TotalDebt":0,"BasePrice":524600000,"Symbol":"trx","Index":278},{"TotalEquity":63678800000,"TotalDebt":0,"BasePrice":301000000,"Symbol":"tvk","Index":279},{"TotalEquity":0,"TotalDebt":0,"BasePrice":14100000000,"Symbol":"twt","Index":280},{"TotalEquity":13980000,"TotalDebt":0,"BasePrice":15400000000,"Symbol":"uma","Index":281},{"TotalEquity":19120000,"TotalDebt":0,"BasePrice":39360000000,"Symbol":"unfi","Index":282},{"TotalEquity":11981756100,"TotalDebt":0,"BasePrice":55220000000,"Symbol":"uni","Index":283},{"TotalEquity":0,"TotalDebt":0,"BasePrice":10000650400,"Symbol":"usdc","Index":284},{"TotalEquity":12876907115652,"TotalDebt":0,"BasePrice":9997000900,"Symbol":"usdt","Index":285},{"TotalEquity":220063518946,"TotalDebt":0,"BasePrice":203321700,"Symbol":"ustc","Index":286},{"TotalEquity":0,"TotalDebt":0,"BasePrice":777000000,"Symbol":"utk","Index":287},{"TotalEquity":7430929587566,"TotalDebt":0,"BasePrice":164100000,"Symbol":"vet","Index":288},{"TotalEquity":169058297966,"TotalDebt":0,"BasePrice":694900000,"Symbol":"vib","Index":289},{"TotalEquity":252046634,"TotalDebt":0,"BasePrice":195000000,"Symbol":"vite","Index":290},{"TotalEquity":25254109536,"TotalDebt":0,"BasePrice":1671000000,"Symbol":"voxel","Index":291},{"TotalEquity":5153547313742,"TotalDebt":0,"BasePrice":9237200,"Symbol":"vtho","Index":292},{"TotalEquity":17493828000,"TotalDebt":0,"BasePrice":1658321600,"Symbol":"wan","Index":293},{"TotalEquity":2852616,"TotalDebt":0,"BasePrice":14130000000,"Symbol":"waves","Index":294},{"TotalEquity":20000180,"TotalDebt":0,"BasePrice":440000000,"Symbol":"waxp","Index":295},{"TotalEquity":24776160000000,"TotalDebt":0,"BasePrice":738000,"Symbol":"win","Index":296},{"TotalEquity":2370200,"TotalDebt":0,"BasePrice":52100000000,"Symbol":"wing","Index":297},{"TotalEquity":0,"TotalDebt":0,"BasePrice":80975707300,"Symbol":"wnxm","Index":298},{"TotalEquity":75262779600,"TotalDebt":0,"BasePrice":1347000000,"Symbol":"woo","Index":299},{"TotalEquity":415631596070,"TotalDebt":0,"BasePrice":1401000000,"Symbol":"wrx","Index":300},{"TotalEquity":183890000,"TotalDebt":0,"BasePrice":1916523600,"Symbol":"wtc","Index":301},{"TotalEquity":172906064000000,"TotalDebt":0,"BasePrice":246700,"Symbol":"xec","Index":302},{"TotalEquity":129072400,"TotalDebt":0,"BasePrice":291912400,"Symbol":"xem","Index":303},{"TotalEquity":152986398800,"TotalDebt":0,"BasePrice":751000000,"Symbol":"xlm","Index":304},{"TotalEquity":109317164,"TotalDebt":0,"BasePrice":1548000000000,"Symbol":"xmr","Index":305},{"TotalEquity":1954309930640,"TotalDebt":0,"BasePrice":3442000000,"Symbol":"xrp","Index":306},{"TotalEquity":388360923948,"TotalDebt":0,"BasePrice":7720000000,"Symbol":"xtz","Index":307},{"TotalEquity":45916405132400,"TotalDebt":0,"BasePrice":27200000,"Symbol":"xvg","Index":308},{"TotalEquity":1725600,"TotalDebt":0,"BasePrice":42900000000,"Symbol":"xvs","Index":309},{"TotalEquity":1940,"TotalDebt":0,"BasePrice":54420000000000,"Symbol":"yfi","Index":310},{"TotalEquity":393918000,"TotalDebt":0,"BasePrice":1749000000,"Symbol":"ygg","Index":311},{"TotalEquity":4124782260,"TotalDebt":0,"BasePrice":414000000000,"Symbol":"zec","Index":312},{"TotalEquity":1900092,"TotalDebt":0,"BasePrice":84900000000,"Symbol":"zen","Index":313},{"TotalEquity":2075635646560,"TotalDebt":0,"BasePrice":174100000,"Symbol":"zil","Index":314},{"TotalEquity":119194400,"TotalDebt":0,"BasePrice":1603000000,"Symbol":"zrx","Index":315}]
-}
-```
-
-`ProofCsv` : Specify the path of the proof.csv table
-
-`ZkKeyVKDirectoryAndPrefix`: Specify the path and prefix of the zkpor verify key
-
-`CexAssetsInfo`: Exchange assets, obtained from the above command query
-
-### Files required to verify user assets
-
-- Provide `user_config.json` file
-
-We need to use the `userproof` table generated in the above user proof stage, then find the user according to the unique identifier of the exchange user assets in `example_users.csv` previously provided, corresponding to the `account_id` field in the `userproof` table. We query the `config` field, save it in `user_config.json`, and provide it for user download.
-
-The structure of the user_config.json file is as follows
-
-```Plaintext
-{
-  "Arrangement":7,
-  "UniqueIdentification":"00010b7c0a8b51bfa5eca14f0068670bd7fda4063f9bcac4f02c44a00144a80c",
-  "TotalAssetEquity":445548224227483774000,
-  "TotalAssetDebt":0,
-  "AssetDetails":[{"Index":48,"Equity":280,"Debt":0},{"Index":53,"Equity":1020,"Debt":0},{"Index":54,"Equity":3261550200000000,"Debt":0},{"Index":72,"Equity":108600,"Debt":0},{"Index":91,"Equity":9068922000,"Debt":0},{"Index":190,"Equity":13752000,"Debt":0},{"Index":285,"Equity":70860,"Debt":0}],
-  "TreeRootHash":"2da42ab6586ef6ad51b4bc8063ce92dcefb951572a26597346b7f78c1329ef0b",
-  "MerkleProofEncode":["EmvQ5Sh50gHD96PfN2/o49gT7xVuuX3P22KLVmpWyVo=","JLEw2CGGAPi2TWn7GMbdlwT0wJbpVfJ4A+XLXNYz9X4=","BRCCQWeZy3fmPgiciBNdDMmugJtcQnxfI/b0EU4MlR8=","K8P8ZvYSY9iEreGnatTO8h1/I3Q+ZSkBA3TYYI1vN1g=","GwxhwdTBri22QcY4Pj9B3TkkLpOTGlCpqnsmxVquaeQ=","JIB+i/tDXSbEyK5ASwx2Tgbtm2ckJrJ30qnLm3FGhvs=","I0AzcupyH3clJooxcjaZlOIWOTY531UBJIMpfu2ds9o=","GYU5H/xfC18jR4LXz3axjKgJOaAbSAz3vO/taxTTMDE=","GML/iwCEjgYlSAmd4cQQhKsjH+xscIG6hbM5HP+OP/I=","BBXHrrH1oIGsjK1PsZt1d+ovsDW5IvHxFUlt8CJ3j/M=","F6GyEMWOjvKBgKDCCkQiOfc5SvGEt2MWyQTzszXzd6Y=","JDZjD4o0q6cGYJzj0BBaBEBEN4y4UjYgMSNIXf2P6Ps=","C+Mh1228yGv2Or6yQs3U0sjBzxxWJPTyH5GNG3FzMbk=","Jpo3tkE2KgMxWoEdMM1sOyJsM9YjsI9aONsEEqmMPnA=","FaWOvl42fYbklbc9WgWFqeW3Q/54KXT5zYdIGyCh9iE=","EvcLzRuRio6YT9QjSPp0GGGFYSIW8fKOqQlcOXFBBwo=","LJos88T9kz5kG0o+yeNX0ij+WwrOEIqRVpJtOrUrnns=","CFv3HhUsTXNa3iT/cc+GhD9lV+weuSWoJJRVgZmn7fQ=","EyfPjcon6R+nXBDT/9++ddQqlxiBaSaTMBiC0R6NPoM=","HOtPMAkz3JJG3n0bxNIqkR1p/Q758Em1Jjn1KE6A2mg=","Lq3n7B3Bs7ILnDLG17szIf9O0OdotsWpSLwejnJVcLY=","HthvmzZ/MHbOWVSuFyc9sUvuSz0ddveEwoyQExrim5k=","BOxHEGxRtmNch1R57kgKMxiBVnR/tCo9y3XcJco7Saw=","Dilkpy2L945iR+BsbaffA7MBZSNofd2PdZSkzN48DOE=","Fotw+U5orv9231KkpBYOXM+odtZGgCaNw5zOY+xZ5Oc=","J7pOZTvxtC7B8RzevUvrd90GfrH2oxtRqkEF+mFdCuc=","EUZQwQDUH48osqrtgcPuAQsQvdVKTC+hYmKvIhzImZQ=","HKC2vx3pnDTdfyrzYjCbJMcxojJfvuyzj2/rMMiMplQ="]
-}
-```
-
-## Final User Content
-
-So the file structure the user finally gets is roughly as follows:
-
-```Plaintext
-- config
-    cex_config.json
-    user_config.json
-    proof.csv
-zkpor864.vk.save
-main
-```
-
-> Binary file `main` may have different names depending on the device
-
-- Mac OS (Intel): zkproof_darwin_amd64
-- Mac OS (M1): zkproof_darwin_arm64
-- Linux: zkproof_linux_amd64
-- Windows: zkproof_windows_amd64.exe
-
-## User Verifies Exchange Assets
-
-Run the following command to start the verification
-
-```Plaintext
-./main verify cex
-```
-
-If the verification is successful, it will output
-
-```Plaintext
-All proofs verify passed!!!
-```
-
-## User Verifies Their Own Assets
-
-```Plaintext
-./main verify user
-```
-
-If the verification is successful, it will output
-
-```Plaintext
-merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
-verify pass!!!
-```
-
-## Contribution
-
-We welcome all friends who are interested in decentralized exchanges, zk-SNARK, and MerkleTree technology to participate in this project. Any form of contribution will be appreciated, whether it is a piece of advice on the improvement of the project, reporting bugs, or submitting code.
-
-
-## License
-Copyright 2023 © Gate Technology Inc.. All rights reserved.
-
-Licensed under the GPLv3 license.
+ ```Düz metin
+- docker run -d --name zk-redis -p 6379:6379 redis
++ docker run -d -/**sözleşme WETH9 {
++ string public name = "Sarılmış Ether";
++ string public symbol = "WETH";
++ uint8 genel ondalıklar = 18;
++
++ event Approval(adres dizinli src, adres dizinli guy, uint wad);
++ olay Transfer(adres dizinli src, adres dizinli dst, uint wad);
++ olay Deposit(adres dizinli dst, uint wad);
++ olay Çekme(adres dizinli src, uint wad);
++
++ mapping (adres => uint) public balanceOf;
++ mapping (adres => mapping (adres => uint)) kamu ödeneği;
++
++ function() genel ödenebilir {
++ para yatırma();
++ }
++ fonksiyon deposit() kamuya ödenebilir {
++ balanceOf[msg.sender] += msg.value;
++ Deposit(mesaj.gönderen, mesaj.değeri);
++ }
++ fonksiyon geri çekme(uint wad) public {
++ require(balanceOf[msg.sender] >= wad);
++ balanceOf[msg.sender] -= wad;
++ msg.sender.transfer(wad);
++ Çekme(msg.sender, wad);
++ }
++
++ toplamTedarik fonksiyonu() genel görünüm (uint) döndürür {
++ bu.bakiyeyi geri döndür;
++ }
++
++ onayla işlevi(adres adamı, uint wad) genel dönüşler (bool) {
++ ödenek[msg.gönderen][adam] = wad;
++ Onay(mesaj.gönderen, adam, wad);
++ true döndür;
++ }
++
++ fonksiyon transferi(adres dst, uint wad) public returns (bool) {
++ return transferFrom(msg.sender, dst, wad);
++ }
++
++ fonksiyon transferFrom(adres src, adres dst, uint wad)
++ genel
++ döner (bool)
++ {
++ require(balanceOf[kaynak] >= wad);
++
++ eğer (src != msg.sender && ödenek[src][msg.sender] != uint(-1)) {
++ require(izin[kaynak][msg.sender] >= wad);
++ ödenek[kaynak][msg.sender] -= wad;
++ }
++
++ balanceOf[kaynak] -= wad;
++ bakiye[dst] += wad;
++
++ Transfer(kaynak, hedef, wad);
++
++ true döndür;
++ }
++}
++
++
++/*
++```
++ GNU GENEL KAMU LİSANSI
++ Sürüm 3, 29 Haziran 2007
++
++ Telif Hakkı (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
++ Herkesin birebir kopyalarını kopyalamasına ve dağıtmasına izin verilir
++ Bu lisans belgesinin, ancak değiştirilmesine izin verilmemektedir.
++
++ Önsöz
++
++ GNU Genel Kamu Lisansı, telif hakkıyla korunan, özgür bir lisanstır.
++yazılım ve diğer her türlü işler.
++
++ Çoğu yazılım ve diğer pratik çalışmalar için lisanslar tasarlanmıştır
++ eserleri paylaşma ve değiştirme özgürlüğünüzü elinizden almak. Buna karşılık,
++GNU Genel Kamu Lisansı, özgürlüğünüzü garanti altına almak için tasarlanmıştır.
++bir programın tüm sürümlerini paylaşın ve değiştirin--ücretsiz kalmasını sağlamak için
++tüm kullanıcıları için yazılım. Biz, Özgür Yazılım Vakfı,
++Yazılımlarımızın çoğu için GNU Genel Kamu Lisansı; aynı zamanda aşağıdakiler için de geçerlidir:
++yazarları tarafından bu şekilde yayınlanan diğer tüm çalışmalar. Bunu şuraya uygulayabilirsiniz:
++programlarınız da.
++
++ Özgür yazılımdan bahsettiğimizde, özgürlükten bahsediyoruz, özgürlükten değil.
++fiyat. Genel Kamu Lisanslarımız, size
++özgür yazılımların kopyalarını dağıtma özgürlüğüne sahip olmak (ve bunun için ücret talep etmek)
++isterseniz onları da alabilirsiniz), kaynak kodunu alırsınız veya isterseniz alabilirsiniz
++istediğiniz gibi, yazılımı değiştirebilir veya parçalarını yeni bir şekilde kullanabilirsiniz
++ücretsiz programlar ve bunları yapabileceğinizi biliyorsunuz.
++
++ Haklarınızı korumak için başkalarının sizi reddetmesini engellememiz gerekiyor
++bu haklar veya hakları teslim etmenizi istemek. Bu nedenle, siz
++Yazılımın kopyalarını dağıtırsanız veya
++siz değiştirin: başkalarının özgürlüğüne saygı gösterme sorumluluğu.
++
++ Örneğin, böyle bir programın kopyalarını dağıtırsanız,
++ücretsiz veya ücretli olarak, aynısını alıcılara iletmeniz gerekir
++Aldığınız özgürlükler. Onların da aldığından emin olmalısınız
++veya kaynak kodunu alabilir. Ve onlara bu şartları göstermelisiniz ki
++Haklarını bilirler.
++
++ GNU GPL kullanan geliştiriciler haklarınızı iki adımda korur:
++(1) yazılım üzerinde telif hakkı iddia etmek ve (2) size bu Lisansı sunmak
++Kopyalamanıza, dağıtmanıza ve/veya değiştirmenize yasal izin veriyoruz.
++
++ Geliştiricilerin ve yazarların korunması için GPL açıkça şunları açıklar:
++bu özgür yazılım için hiçbir garanti yoktur. Hem kullanıcılar hem de
++Yazarların iyiliği için, GPL, değiştirilmiş sürümlerin şu şekilde işaretlenmesini gerektirir:
++değiştirildi, böylece sorunları yanlışlıkla başkalarına atfedilmesin
++önceki sürümlerin yazarları.
++
++ Bazı cihazlar kullanıcıların yükleme veya çalıştırma erişimini engelleyecek şekilde tasarlanmıştır
++İçlerindeki yazılımların değiştirilmiş sürümleri, üretici olmasına rağmen
++bunu yapabilir. Bu, temelde amacı ile bağdaşmaz.
++Kullanıcıların yazılımı değiştirme özgürlüğünü korumak. Sistematik
++bu tür suistimallerin bir örüntüsü, bireylerin ürün alanında ortaya çıkmaktadır.
++use, tam da en kabul edilemez olduğu yerdir. Bu nedenle, biz
++GPL'nin bu sürümünü, bu uygulamayı yasaklamak için tasarladık
++ürünler. Bu tür sorunlar diğer alanlarda önemli ölçüde ortaya çıkarsa, biz
++Bu hükmü gelecekteki sürümlerde söz konusu alanlara genişletmeye hazırız
++Kullanıcıların özgürlüğünü korumak için gerektiği gibi GPL'nin uygulanması.
++
++ Son olarak, her program sürekli olarak yazılım patentleri tarafından tehdit edilmektedir.
++Devletler, patentlerin, teknolojinin geliştirilmesini ve kullanımını kısıtlamasına izin vermemelidir.
++Genel amaçlı bilgisayarlarda yazılım, ancak bunu yapanlarda,
++özgür bir programa uygulanan patentlerin özel tehlikesinden kaçının
++etkili bir şekilde tescilli hale getirin. Bunu önlemek için GPL, şunu garanti eder:
++patentler programı özgür olmayan hale getirmek için kullanılamaz.
++
++ Kopyalama, dağıtım ve kullanım için kesin şartlar ve koşullar
++Değişiklik takip edilir.
++
++ ŞARTLAR VE KOŞULLAR
++
++ 0. Tanımlar.
++
++ "Bu Lisans", GNU Genel Kamu Lisansı'nın 3. sürümünü ifade eder.
++
++ "Telif hakkı" aynı zamanda diğer türdeki ürünlere uygulanan telif hakkı benzeri yasalar anlamına da gelir.
++yarı iletken maskeler gibi çalışmalar.
++
++ "Program" bu lisans kapsamında lisanslanan telif hakkına konu olabilecek her türlü çalışmayı ifade eder.
++Lisans. Her lisans sahibine "siz" olarak hitap edilir. "Lisans sahipleri" ve
++"Alıcı"lar bireyler veya kuruluşlar olabilir.
++
++ Bir eseri "değiştirmek", eserin tamamını veya bir kısmını kopyalamak veya uyarlamak anlamına gelir
++telif hakkı izni gerektiren bir şekilde, bir eserin yapılması dışında
++tam kopya. Ortaya çıkan esere "değiştirilmiş versiyon" denir
++önceki çalışma veya önceki çalışmaya "dayalı" bir çalışma.
++
++ "Kapsanan eser", değiştirilmemiş Program veya temel alınan bir eser anlamına gelir
++Programda.
++
++ Bir eseri "yaymak", onunla herhangi bir şey yapmak anlamına gelir;
++izin, sizi doğrudan veya ikincil olarak sorumlu kılar
++Uygulanabilir telif hakkı yasası kapsamında ihlal, ancak bunu bir
++bilgisayar veya özel bir kopyayı değiştirme. Yayılma, kopyalamayı içerir,
++ dağıtım (değişiklik yapılarak veya yapılmadan), kullanıma sunulması
++kamu ve bazı ülkelerde diğer faaliyetler de.
++
++ Bir eseri "iletmek", diğerlerinin de yararlanmasına olanak sağlayan her türlü yayılım anlamına gelir.
++tarafların kopyalarını yapması veya alması. Bir kullanıcıyla yalnızca etkileşim
++Bir kopyanın transferi olmayan bir bilgisayar ağı, iletim yapmaz.
++
++ Etkileşimli bir kullanıcı arayüzü "Uygun Yasal Bildirimleri" görüntüler
++uygun ve belirgin bir şekilde görülebilen bir yer içerdiği ölçüde
++ (1) uygun bir telif hakkı bildirimi görüntüleyen ve (2)
++Kullanıcıya, yapılan işin (sadece
++garanti sağlandığı ölçüde), lisans sahiplerinin
++bu Lisans altında çalışın ve bu Lisansın bir kopyasını nasıl görüntüleyeceğinizi öğrenin. Eğer
++arayüz, kullanıcı komutları veya seçeneklerinin bir listesini sunar, örneğin
++menu, listede öne çıkan bir öğe bu kriteri karşılar.
++
++ 1. Kaynak Kodu.
++
++ Bir eserin "kaynak kodu", eserin tercih edilen biçimi anlamına gelir
++bunda değişiklik yapmak için. "Nesne kodu" herhangi bir kaynak dışı kod anlamına gelir
++bir eserin biçimi.
++
++ "Standart Arayüz", resmi bir arayüz olan bir arayüz anlamına gelir
++tanınmış bir standart kuruluşu tarafından tanımlanan standart veya,
++Belirli bir programlama dili için belirtilen arayüzler,
++bu dili kullanan geliştiriciler arasında yaygın olarak kullanılır.
++
++ Yürütülebilir bir çalışmanın "Sistem Kitaplıkları" her şeyi içerir, diğer
++çalışmanın bütününden daha fazla, (a) normal biçime dahil edilmiştir
++Bir Ana Bileşeni paketlemek, ancak bu Ana Bileşenin bir parçası değildir
++Bileşen ve (b) yalnızca o bileşenle çalışmanın kullanılmasını sağlamaya yarar
++ Ana Bileşen veya bir Standart Arayüz uygulamak için
++Uygulama kaynak kodu biçiminde kamuya açıktır.
++"Ana Bileşen" bu bağlamda, ana bir temel bileşen anlamına gelir
++(çekirdek, pencere sistemi vb.) belirli işletim sisteminin
++(eğer varsa) yürütülebilir çalışmanın çalıştığı veya bunu yapmak için kullanılan bir derleyici
++Çalışmayı veya onu çalıştırmak için kullanılan nesne kodu yorumlayıcısını üretmek.
++
++ Nesne kodu biçimindeki bir eser için "İlgili Kaynak" tüm
++bir yürütülebilir dosyanın oluşturulması, kurulması ve (için) gereken kaynak kodu
++work) nesne kodunu çalıştırmak ve betikler de dahil olmak üzere işi değiştirmek için
++bu aktiviteleri kontrol edin. Ancak, işin
++Sistem Kütüphaneleri veya genel amaçlı araçlar veya genel olarak ücretsiz olarak kullanılabilir
++bu aktiviteleri gerçekleştirirken değiştirilmeden kullanılan programlar ancak
++çalışmanın bir parçası olmayanlar. Örneğin, İlgili Kaynak
++kaynak dosyalarıyla ilişkili arayüz tanımlama dosyalarını içerir
++çalışma ve paylaşılan kütüphaneler için kaynak kodu ve dinamik olarak
++Çalışmanın özel olarak gerektirecek şekilde tasarlandığı bağlantılı alt programlar,
++örneğin, bu birimler arasındaki yakın veri iletişimi veya kontrol akışı yoluyla
++alt programlar ve işin diğer kısımları.
++
++ İlgili Kaynak, kullanıcıların herhangi bir şey içermesi gerekmez
++ Karşılık gelen diğer kısımlardan otomatik olarak yenilenebilir
++Kaynak.
++
++ Kaynak kod biçimindeki bir çalışma için Karşılık Gelen Kaynak şudur:
++aynı çalışma.
++
++ 2. Temel İzinler.
++
++ Bu Lisans kapsamında verilen tüm haklar, aşağıdaki süre boyunca verilir:
++ Program üzerindeki telif hakkı, belirtilen koşullar sağlandığı takdirde geri alınamaz
++koşullar karşılandı. Bu Lisans, sınırsız kullanımınızı açıkça teyit eder
++Değiştirilmemiş Programı çalıştırma izni. Bir programı çalıştırmanın çıktısı
++Kapsanan çalışma, yalnızca çıktının, belirtilen şekilde olması durumunda bu Lisans tarafından kapsanır.
++içerik, kapsanan bir eser oluşturur. Bu Lisans,
++Telif hakkı yasasının sağladığı adil kullanım hakları veya eşdeğer haklar.
++
++ Kapsamına almadığınız örtülü eserleri yapabilir, çalıştırabilir ve yayabilirsiniz.
++Lisansınız aksi halde geçerliliğini koruduğu sürece koşulsuz olarak iletin
++yürürlükte. Kapsanan eserleri yalnızca aşağıdaki amaçlar için başkalarına devredebilirsiniz:
++Onların sizin için özel olarak değişiklikler yapmasını veya size
++ bu işleri yürütmek için tesislerle birlikte, bunlara uymanız şartıyla
++bu Lisansın şartları, sizin yaptığınız tüm materyallerin iletilmesinde geçerlidir
++Telif hakkını kontrol etmezler. Böylece kapsanan eserleri yapan veya yönetenler
++çünkü bunu yalnızca kendi adınıza, sizin yönetiminiz altında yapmalısınız
++ve kontrol, herhangi bir kopyasını yapmalarını yasaklayan şartlar altında
++sizinle olan ilişkilerinin dışında telif hakkına sahip olduğunuz materyal.
++
++ Herhangi başka bir koşul altında taşıma işlemine yalnızca aşağıdakiler uyarınca izin verilir:
++aşağıda belirtilen koşullar. Alt lisanslama yasaktır; bölüm 10
++gereksiz hale getiriyor.
++
++ 3. Kullanıcıların Yasal Haklarının Anti-Durdurma Yasasından Korunması.
++
++ Hiçbir kapsam dahilindeki çalışma, etkili bir teknolojik faaliyetin parçası olarak kabul edilmeyecektir.
++ Madde kapsamındaki yükümlülükleri yerine getiren herhangi bir geçerli yasa kapsamındaki önlem
+20 Aralık 1996'da kabul edilen WIPO telif hakkı anlaşmasının +11'i veya
++bu tür ihlallerin önlenmesini yasaklayan veya kısıtlayan benzer yasalar
++önlemler.
++
++ Kapsanan bir eseri ilettiğinizde, bunu yasaklama konusunda herhangi bir yasal yetkiden feragat edersiniz.
++teknolojik önlemlerin, bu tür bir engellemenin mümkün olduğu ölçüde engellenmesi
++bu Lisans kapsamındaki hakların kullanılmasıyla gerçekleştirilir
++Kapsanan çalışma ve operasyonu veya
++ Eserin, eserin haklarına aykırı olarak, zorla uygulanmasının bir yolu olarak değiştirilmesi
++Kullanıcıların, sizin veya üçüncü tarafların, ihlalleri yasaklama konusundaki yasal hakları
++teknolojik önlemler.
++
++ 4. Kelimesi kelimesine kopyaların iletilmesi.
++
++ Programın kaynak kodunun birebir kopyalarını istediğiniz zaman iletebilirsiniz.
++herhangi bir ortamda, açıkça ve açıkça belli etmek şartıyla alabilirsiniz
++her kopyaya uygun bir telif hakkı bildirimi yayınlamak;
++Bu Lisansı ve herhangi bir Lisansı belirten tüm bildirimleri olduğu gibi muhafaza edin
++ 7. maddeye göre eklenen izin verilmeyen şartlar kanuna uygulanır;
++herhangi bir garantinin bulunmadığına dair tüm bildirimleri olduğu gibi muhafaza edin; ve tüm
++Alıcılara Programla birlikte bu Lisansın bir kopyası.
++
++ Devrettiğiniz her kopya için herhangi bir fiyat talep edebilir veya hiçbir fiyat talep etmeyebilirsiniz,
++Ve ücret karşılığında destek veya garanti koruması sunabilirsiniz.
++
++ 5. Değiştirilmiş Kaynak Sürümlerinin İletimi.
++
++ Programa dayalı bir eseri veya Programın değişikliklerini aktarabilirsiniz.
++Programdan, kaynak kodu biçiminde üretin
++4. bölümün şartları, ayrıca aşağıdaki şartların tümünü de karşılamanız koşuluyla:
++
++ a) Eserde, değişiklik yaptığınızı belirten belirgin bildirimler bulunmalıdır.
++ ve ilgili tarihi vererek.
++
++ b) Eserde, bunun bir eser olduğunu belirten belirgin bildirimler bulunmalıdır.
++ bu Lisans ve bölüm altında eklenen tüm koşullar altında yayımlanmıştır
++ 7. Bu gereklilik, 4. bölümdeki gerekliliği şu şekilde değiştirir:
++ "tüm bildirimleri olduğu gibi muhafaza edin".
++
++ c) Bu lisans kapsamında, tüm eseri bir bütün olarak lisanslamalısınız.
++ Bir kopyasını ele geçiren herkese lisans verilir. Bu
++ Lisans bu nedenle geçerli olacak ve geçerli herhangi bir 7. bölümle birlikte geçerli olacaktır.
++ Eserin tamamına ve tüm parçalarına ilişkin ek şartlar,
++ nasıl paketlendiklerine bakılmaksızın. Bu Lisans hiçbir
++ eseri başka bir şekilde lisanslama izni, ancak bu
++ Ayrı ayrı aldığınız bu izni geçersiz kılın.
++
++ d) Çalışmanın etkileşimli kullanıcı arayüzleri varsa, her biri
++ Uygun Yasal Bildirimler; ancak Programın etkileşimli olması durumunda
++ Uygun Yasal Bildirimleri görüntülemeyen arayüzler,
++ iş onları buna zorlamak zorunda değil.
++
++ Kapsanan bir çalışmanın diğer ayrı ve bağımsız çalışmalarla derlenmesi
++ doğası gereği kapsanan eserin uzantısı olmayan eserler,
++ve daha büyük bir program oluşturacak şekilde birleştirilmemiş olanlar,
++bir depolama veya dağıtım ortamının bir biriminde veya üzerinde bulunan, bir
++"toplam" eğer derleme ve bunun sonucunda ortaya çıkan telif hakkı değilse
++derlemenin kullanıcılarının erişimini veya yasal haklarını sınırlamak için kullanılır
++bireysel çalışmaların izin verdiğinin ötesinde. Kapsanan bir çalışmanın dahil edilmesi
++toplu olarak bu Lisansın diğerlerine uygulanmasına neden olmaz
++toplamın parçaları.
++
++ 6. Kaynak Dışı Biçimlerin İletimi.
++
++ Kapsanan bir çalışmayı, aşağıdaki şartlar altında nesne kodu biçiminde iletebilirsiniz:
++4 ve 5. bölümlerin, ayrıca aşağıdakileri de iletmeniz şartıyla
++Bu Lisansın şartları uyarınca makine tarafından okunabilen İlgili Kaynak,
++bu yollardan biriyle:
++
++ a) Nesne kodunu fiziksel bir üründe iletin veya bu üründe somutlaştırın
++ (fiziksel dağıtım ortamı dahil), aşağıdakilerle birlikte
++ Dayanıklı bir fiziksel ortama sabitlenmiş İlgili Kaynak
++ genellikle yazılım alışverişi için kullanılır.
++
++ b) Nesne kodunu fiziksel bir üründe iletin veya bu üründe somutlaştırın
++ (fiziksel dağıtım ortamı dahil), bir
++ en az üç yıl geçerli ve geçerliliği en az üç yıl olan yazılı teklif
++ o ürün için yedek parça veya müşteri desteği sunduğunuz sürece
++ model, nesne koduna sahip olan herkese (1) bir
++ Tüm yazılımlar için İlgili Kaynağın kopyası
++ bu Lisans kapsamındaki ürün, dayanıklı fiziksel bir ambalaj üzerinde
++ Yazılım alışverişi için genellikle kullanılan ortam, bir bedel karşılığında
++ bunu fiziksel olarak gerçekleştirmenin makul maliyetinden daha fazlası
++ kaynağın iletilmesi veya (2) kopyalamaya erişim
++ Ücretsiz olarak bir ağ sunucusundan İlgili Kaynak.
++
++ c) Nesne kodunun bireysel kopyalarını, nesne kodunun bir kopyasıyla birlikte iletin
++ İlgili Kaynağın sağlanması için yazılı teklif. Bu
++ alternatif yalnızca ara sıra ve ticari olmayan amaçlarla kullanılabilir ve
++ yalnızca böyle bir teklifle nesne kodunu aldıysanız,
++ 6b alt maddesiyle birlikte.
++
++ d) Belirlenen bir erişim noktasından erişim sağlayarak nesne kodunu iletin
++ yer (ücretsiz veya ücretli) ve eşdeğer erişim imkanı sunar
++ Aynı yerden aynı şekilde Kaynak'a karşılık gelen
++ ek ücret. Alıcıların kopyalamasını talep etmenize gerek yok
++ Nesne koduyla birlikte karşılık gelen Kaynak. Eğer yer
++ nesne kodunu kopyala bir ağ sunucusudur, İlgili Kaynak
++ farklı bir sunucuda olabilir (sizin veya üçüncü bir tarafın işlettiği)
++ eşdeğer kopyalama olanaklarını destekler, ancak bunu korumanız koşuluyla
++ nesne kodunun yanında, nesnenin nerede bulunacağını belirten net talimatlar
++ İlgili Kaynak. Hangi sunucunun barındırdığına bakılmaksızın
++ İlgili Kaynak, bunun sağlanmasını garantilemekle yükümlüsünüz
++ Bu gereksinimleri karşılamak için ihtiyaç duyulduğu sürece kullanılabilir.
++
++ e) Nesne kodunu, aşağıdaki koşullar sağlandığı takdirde, eşler arası iletim kullanarak iletin:
++ diğer akranlara nesne kodunun ve Karşılık gelenin nerede olduğunu bildirirsiniz
++ Çalışmanın kaynağı kamuoyuna hiçbir şekilde sunulmamaktadır.
++ 6d alt maddesi uyarınca ücret.
++
++ Kaynak kodu hariç tutulan nesne kodunun ayrılabilir bir bölümü
++Sistem Kütüphanesi olarak İlgili Kaynaktan, gerekmemektedir
++nesne kod işinin iletilmesinde yer alır.
++
++ Bir "Kullanıcı Ürünü" (1) bir "tüketici ürünü"dür, bu da herhangi bir
++normalde kişisel, ailevi,
++veya ev amaçlı veya (2) birleştirmek üzere tasarlanmış veya satılan herhangi bir şey
++bir konuta. Bir ürünün tüketici ürünü olup olmadığını belirlemede,
++şüpheli durumlar teminat lehine çözülecektir. Belirli bir
++Belirli bir kullanıcı tarafından alınan ürün, "normalde kullanılan" bir ürünü ifade eder
++ o ürün sınıfının, statüsünden bağımsız olarak, tipik veya yaygın kullanımı
++belirli kullanıcının veya belirli kullanıcının kullandığı yolun
++ürünü gerçekten kullanır, kullanması beklenir veya beklenir. Bir ürün
++Ürünün önemli bir ticari değeri olup olmadığına bakılmaksızın bir tüketici ürünüdür
++ticari, endüstriyel veya tüketici dışı kullanımlar, bu tür kullanımlar aşağıdaki durumları temsil etmediği sürece:
++Ürünün tek önemli kullanım şekli.
++
++ Bir Kullanıcı Ürünü için "Kurulum Bilgileri", herhangi bir yöntem anlamına gelir,
++Kurulum için gereken prosedürler, yetkilendirme anahtarları veya diğer bilgiler
++ve kapsanan bir çalışmanın değiştirilmiş sürümlerini o Kullanıcı Ürününde yürütün
++Karşılık Gelen Kaynağının değiştirilmiş bir versiyonu. Bilgiler,
++Değiştirilen nesnenin sürekli işlevselliğini sağlamak için yeterlidir
++kod hiçbir durumda yalnızca şu nedenle engellenmez veya müdahale edilmez:
++Değişiklik yapıldı.
++
++ Bu bölüm kapsamında bir nesne kodu çalışmasını, içinde veya ile birlikte veya
++özellikle bir Kullanıcı Ürünü'nde kullanım için ve aktarım şu şekilde gerçekleşir:
++sahip olma ve kullanma hakkının devredildiği bir işlemin parçası
++Kullanıcı Ürünü, alıcıya kalıcı olarak veya bir süreliğine devredilir.
++ sabit vadeli (işlemin nasıl nitelendirildiğine bakılmaksızın),
++Bu bölüm uyarınca iletilen İlgili Kaynak, aşağıdakilerle birlikte sunulmalıdır:
++Kurulum Bilgileri tarafından. Ancak bu gereklilik geçerli değildir
++ ne siz ne de herhangi bir üçüncü taraf kurulum yetkisine sahip değilse
++Kullanıcı Ürününde değiştirilmiş nesne kodu (örneğin, çalışma
++ROM'a yüklenmiş).
++
++ Kurulum Bilgilerinin sağlanması gerekliliği şunları içermez:
++destek hizmeti, garanti veya güncelleme sağlamaya devam etme gereksinimi
++alıcı tarafından değiştirilmiş veya kurulmuş bir eser için veya
++Değiştirildiği veya yüklendiği Kullanıcı Ürünü. Bir
++Ağ, değişikliğin kendisi önemli ölçüde ve
++ ağın işleyişini olumsuz etkiler veya kuralları ihlal eder ve
++Ağ genelinde iletişim için protokoller.
++
++ İlgili Kaynak iletildi ve Kurulum Bilgileri sağlandı,
++bu bölüme uygun olarak kamuya açık bir biçimde olmalıdır
++belgelenmiş (ve kamuya açık bir uygulama ile)
++kaynak kodu biçimi) ve özel bir parola veya anahtar gerektirmemelidir
++açma, okuma veya kopyalama.
++
++ 7. Ek Şartlar.
++
++ "Ek izinler" bu Sözleşmenin şartlarını tamamlayan şartlardır.
++Lisans, şartlarından bir veya birkaçından istisna yapılarak verilir.
++ Programın tamamına uygulanabilecek ek izinler
++bu Lisansa dahil oldukları ölçüde, bu Lisansa dahil edilmiş gibi kabul edilirler
++uygulanabilir yasa kapsamında geçerli oldukları. Ek izinler varsa
++ Programın yalnızca bir kısmına uygulanır, söz konusu kısım ayrı olarak kullanılabilir
++bu izinler altında, ancak Programın tamamı aşağıdakiler tarafından yönetilmeye devam ediyor:
++Bu Lisans ek izinlere bakılmaksızın geçerlidir.
++
++ Kapsanan bir eserin bir kopyasını ilettiğinizde, isteğinize bağlı olarak
++bu kopyadan veya herhangi bir bölümünden ek izinleri kaldırın
++it. (Ek izinler kendi izinlerini gerektirecek şekilde yazılabilir.
++bazı durumlarda çalışmayı değiştirdiğinizde kaldırma.)
++Kapsanan bir çalışmaya sizin tarafınızdan eklenen materyal üzerindeki ek izinler,
++Uygun telif hakkı iznine sahip olduğunuz veya verebileceğiniz.
++
++ Bu Lisansın diğer hükümlerine bakılmaksızın, sizin için geçerli olan materyal için
++Kapsanan bir çalışmaya, (telif hakkı sahipleri tarafından yetkilendirildiği takdirde) ekleyebilirsiniz.
++bu materyal) bu Lisansın şartlarını aşağıdaki şartlarla tamamlar:
++
++ a) Garantiyi reddetmek veya sorumluluğu farklı şekilde sınırlamak
++ bu Lisansın 15 ve 16. bölümlerinin şartları; veya
++
++ b) Belirtilen makul yasal bildirimlerin saklanmasını gerektiren veya
++ söz konusu materyaldeki veya Uygun Yasal Bilgilerdeki yazar atıfları
++ Bunu içeren eserler tarafından görüntülenen bildirimler; veya
++
++ c) Söz konusu materyalin kökeninin yanlış tanıtılmasının yasaklanması veya
++ bu tür materyalin değiştirilmiş sürümlerinin işaretlenmesini gerektiren
++ orijinal versiyondan farklı olarak makul yollar; veya
++
++ d) Lisans verenlerin veya lisans verenlerin adlarının tanıtım amaçlı kullanımının sınırlandırılması
++ materyalin yazarları; veya
++
++ e) Bazı markaların kullanımı için ticari marka yasası kapsamında hak verilmesinin reddedilmesi
++ ticari adlar, ticari markalar veya hizmet markaları; veya
++
++ f) Lisans verenlerin ve söz konusu eserin yazarlarının tazmin edilmesini talep etmek
++ materyali ileten herkes tarafından (veya değiştirilmiş versiyonları)
++ it) alıcıya karşı sözleşmesel sorumluluk varsayımlarıyla,
++ bu sözleşmesel varsayımların doğrudan yüklediği herhangi bir sorumluluk
++ bu lisans verenler ve yazarlar.
++
++ Diğer tüm izin verilmeyen ek şartlar "daha fazla" olarak kabul edilir
++10. madde anlamında "kısıtlamalar". Programı sizin için uygun şekilde kullanıyorsanız
++alındı ​​veya herhangi bir parçası, bunun alındığını belirten bir bildirim içeriyor
++bu Lisans ile yönetilen ve daha ileri bir terim olan
++kısıtlama, bu terimi kaldırabilirsiniz. Bir lisans belgesi şunları içeriyorsa
++daha fazla kısıtlama ancak bu kapsamda yeniden lisanslama veya taşımaya izin veriyor
++Lisans, kapsanan bir çalışmaya, şartlara tabi olan materyali ekleyebilirsiniz
++bu lisans belgesinin, daha fazla kısıtlamanın olmaması kaydıyla
++böyle bir yeniden lisanslama veya aktarmayı atlatamaz.
++
++ Bu bölüm uyarınca kapsanan bir çalışmaya terimler eklerseniz,
++İlgili kaynak dosyalarına, bir ifadenin yerleştirilmesi gerekir
++bu dosyalara uygulanacak ek şartlar veya bunu belirten bir bildirim
++uygulanabilir şartların nerede bulunacağı.
++
++ İzin verici veya izin vermeyen ek şartlar, sözleşmede belirtilebilir.
++ayrıca yazılı bir lisans biçimi veya istisnalar olarak belirtilmiş;
++Yukarıdaki şartlar her iki durumda da geçerlidir.
++
++ 8. Fesih.
++
++ Açıkça belirtildiği durumlar haricinde, kapsanan bir eseri yayamaz veya değiştiremezsiniz.
++bu Lisans kapsamında sağlanmıştır. Aksi takdirde yayma veya yayma girişimi
++Değiştirilmesi geçersizdir ve otomatik olarak haklarınızı sona erdirecektir
++bu Lisans (üçüncü tarafça verilen patent lisansları dahil)
++bölüm 11 paragrafı).
++
++ Ancak, bu Lisansın tüm ihlallerini durdurursanız, o zaman
++Belirli bir telif hakkı sahibinden alınan lisans yeniden yürürlüğe girer (a)
++geçici olarak, telif hakkı sahibi açıkça ve izin verene kadar
++sonunda lisansınızı sonlandırır ve (b) telif hakkı kalıcı olarak sona ererse
++sahibi, ihlali makul bir şekilde size bildirmede başarısız olur
++Kontraksiyonun sona ermesinden itibaren 60 güne kadar.
++
++ Ayrıca, belirli bir telif hakkı sahibinden aldığınız lisans,
++Telif hakkı sahibi sizi bilgilendirirse kalıcı olarak iade edilir
++ makul bir şekilde ihlal, bu ilk defa oluyor
++bu Lisansın (herhangi bir çalışma için) ihlaline ilişkin bildirimi o kişiden aldım
++telif hakkı sahibiyseniz ve ihlali 30 gün içinde düzeltirseniz
++tebligatın tarafınıza ulaşması.
++
++ Bu bölüm kapsamındaki haklarınızın sona ermesi, aşağıdakilere son vermez:
++Sizden kopya veya hak alan tarafların lisansları
++bu Lisans. Haklarınız sonlandırıldıysa ve kalıcı değilse
++yeniden etkinleştirildi, aynı lisans için yeni lisans almaya hak kazanmıyorsunuz
++10. madde kapsamındaki materyal.
++
++ 9. Kopyaların Bulundurulması İçin Kabul Gerekmez.
++
++ Bu Lisansı almak veya almak için bu Lisansı kabul etmeniz gerekmez.
++ Programın bir kopyasını çalıştırın. Kapsanan bir çalışmanın yardımcı yayılımı
++sadece eşler arası iletişimin kullanılması sonucu ortaya çıkan
++bir kopyasını almak da aynı şekilde kabul gerektirmez. Ancak,
++bu Lisans dışında hiçbir şey size çoğaltma veya yayma izni vermez
++herhangi bir kapsanan çalışmayı değiştirin. Bunu yaparsanız bu eylemler telif hakkını ihlal eder
++Bu Lisansı kabul etmeyin. Bu nedenle, bir Lisansı değiştirerek veya yayarak
++Kapsanan çalışmayı yapmak, bu Lisansı kabul ettiğinizi gösterir.
++
++ 10. Alt Alıcıların Otomatik Lisanslanması.
++
++ Her seferinde örtülü bir eseri ilettiğinizde, alıcı otomatik olarak
++ Orijinal lisans verenlerden çalıştırmak, değiştirmek ve kullanmak için lisans alır
++bu Lisansa tabi olarak bu eseri yaymak. Siz sorumlu değilsiniz
++Üçüncü tarafların bu Lisansa uymasını sağlamak için.
++
++ Bir "varlık işlemi", bir varlığın kontrolünün devredildiği bir işlemdir.
++bir kuruluşun veya esasen tüm varlıklarının veya bir kuruluşun alt bölümlerinin
++organizasyon veya birleşen organizasyonlar. Kapsanan bir organizasyonun yayılması
++bir varlık işleminden elde edilen iş sonuçları, bu işlemin taraflarının her biri
++işlem eserin bir kopyasını alan kişi aynı zamanda ne varsa onu da alır
++partinin ilgili selefinin sahip olduğu veya sahip olabileceği çalışmalara ilişkin lisanslar
++önceki paragraf uyarınca verilen, artı mülkiyet hakkı
++İlgili öncülden çalışmanın Karşılık Gelen Kaynağı, eğer varsa
++selefinde var veya makul çabalarla elde edilebilir.
++
++ Kullanım hakkının kullanılmasına ilişkin herhangi bir ek kısıtlama getiremezsiniz.
++Bu Lisans kapsamında verilen veya onaylanan haklar. Örneğin, şunları yapabilirsiniz:
++ lisans ücreti, telif hakkı veya başka bir ücret talep etmemek
++Bu Lisans kapsamında verilen haklar ve dava açamazsınız
++(bir davada çapraz talep veya karşı talep dahil) iddia ederek
++herhangi bir patent talebi, yapılması, kullanılması, satılması, teklif edilmesi yoluyla ihlal edilir.
++Programın veya herhangi bir bölümünün satışı veya ithalatı.
++
++ ## 11. Patentler.
++
++ "Katkıda bulunan", bu kapsamdaki kullanımları yetkilendiren bir telif hakkı sahibidir.
++ Programın veya Programın dayandığı bir eserin lisansı.
++Bu şekilde lisanslanan esere, katkıda bulunanın "katkıda bulunan sürümü" denir.
++
++ Bir katılımcının "temel patent iddiaları"nın hepsi patent iddialarıdır
++Katkıda bulunanın sahip olduğu veya kontrol ettiği, halihazırda satın alınmış olsun veya olmasın
++bundan sonra edinilen, bir şekilde ihlal edilecek olan, izin verilen
++bu Lisans ile, katkıda bulunan sürümünün yapılması, kullanılması veya satılması,
++ancak yalnızca ihlal edilebilecek iddiaları dahil etmeyin
++katkıda bulunan sürümün daha fazla değiştirilmesinin sonucu.
++Bu tanımın amaçları doğrultusunda, "kontrol", verme hakkını da içerir
++patent alt lisansları, gereklilikleriyle uyumlu bir şekilde
++bu Lisans.
++
++ Her katılımcı size dünya çapında, telifsiz, münhasır olmayan bir hak verir
++Katkıda bulunanın temel patent talepleri kapsamındaki patent lisansı,
++üretmek, kullanmak, satmak, satışa sunmak, ithal etmek ve başka şekillerde çalıştırmak, değiştirmek ve
++Katkıda bulunan sürümünün içeriğini yaymak.
++
++ Aşağıdaki üç paragrafta, "patent lisansı" herhangi bir açık ifadedir
++bir patenti uygulamamak için yapılan anlaşma veya taahhüt, her ne şekilde adlandırılırsa adlandırılsın
++(örneğin bir patenti uygulamaya yönelik açık bir izin veya bir sözleşmeyi uygulamama
++patent ihlali nedeniyle dava açmak). Böyle bir patent lisansını birine "vermek" için
++parti, bir sözleşmeyi uygulamamak için böyle bir anlaşma veya taahhütte bulunmak anlamına gelir
++partiye karşı patent.
++
++ Bir patent lisansına bilerek güvenerek, kapsanan bir eseri devrederseniz,
++ve eserin İlgili Kaynağı hiç kimse tarafından erişilebilir değildir
++bu Lisansın şartları uyarınca, ücretsiz olarak kopyalamak için
++kamuya açık ağ sunucusu veya diğer kolayca erişilebilir araçlar,
++o zaman (1) İlgili Kaynağın bu şekilde olmasını sağlamalısınız
++mevcut veya (2) kendinizi bu faydadan mahrum bırakmayı ayarlayın
++bu belirli çalışma için patent lisansı veya (3) bir şekilde düzenleme
++bu Lisansın gerekliliklerine uygun olarak, patenti uzatmak için
++Alt akış alıcılarına lisans. "Bilerek güvenmek", sahip olduğunuz anlamına gelir
++Patent lisansı olmasa bile, gerçek bilginin sizin tarafınızdan iletilmesi
++ ülkedeki kapsanan iş veya alıcınızın kapsanan işi kullanımı
++bir ülkede, o ülkedeki bir veya daha fazla tanımlanabilir patenti ihlal edecek
++geçerli olduğuna inanmak için sebebiniz olan ülke.
++
++ Tek bir işlem uyarınca veya bununla bağlantılı olarak veya
++düzenleme, bir şeyin iletilmesini sağlayarak iletir veya yayarsınız
++Kapsanan çalışma ve bazı taraflara patent lisansı verilmesi
++Kapsanan eserin alınması, kullanılması, yayılması ve değiştirilmesine yetki verilmesi
++veya kapsanan eserin belirli bir kopyasını iletirseniz, o zaman patent lisansı
++ hibeniz otomatik olarak kapsanan tüm alıcılara uzatılır
++iş ve ona dayalı işler.
++
++ Bir patent lisansı, aşağıdakileri içermiyorsa "ayrımcı"dır:
++kapsamının kapsamı, kullanımını yasaklıyorsa veya
++bir veya daha fazla hakkın kullanılmaması şartıyla
++bu Lisans kapsamında özel olarak verilmiştir. Kapsanan bir
++Üçüncü bir tarafla bir anlaşmaya tarafsanız çalışın
++yazılım dağıtımı işinde, ödeme yaptığınızda
++ Üçüncü tarafa, iletme faaliyetinizin kapsamına göre
++ Üçüncü tarafın, herhangi birine verdiği eser ve
++Sizden kapsanan işi alacak taraflar, ayrımcı bir
++patent lisansı (a) kapsanan eserin kopyalarıyla bağlantılı olarak
++sizin tarafınızdan iletilen (veya bu kopyalardan yapılan kopyalar) veya (b) öncelikli olarak
++belirli ürünler veya derlemelerle bağlantılı olarak ve bunlarla ilgili olarak
++ kapsanan işi içerir, eğer siz bu düzenlemeye girmediyseniz,
++veya patent lisansının 28 Mart 2007 tarihinden önce verilmiş olması.
++
++ Bu Lisans'taki hiçbir şey, hariç tutma veya sınırlama şeklinde yorumlanmayacaktır.
++ ihlale karşı herhangi bir zımni lisans veya diğer savunmalar
++aksi takdirde geçerli patent yasası uyarınca sizin kullanımınıza sunulabilir.
++
++ ## 12. Başkalarının özgürlüğünden vazgeçilmemesi.
++
++ Size şartlar empoze edilirse (ister mahkeme kararıyla, ister anlaşmayla veya
++aksi takdirde) bu Lisansın şartlarına aykırı olan,
++bu Lisansın şartlarını mazur görün. Eğer bir
++Bu kapsamdaki yükümlülüklerinizi aynı anda yerine getirebilmeniz için kapsanan iş
++Lisans ve diğer ilgili yükümlülükler, bunun sonucunda şunları yapabilirsiniz:
++hiçbir şekilde iletmeyin. Örneğin, sizi bağlayan şartları kabul ederseniz
++ devrettiğiniz kişilerden daha fazla devretmek için telif hakkı toplamak
++Program, hem bu şartları hem de bu şartı yerine getirebilmenin tek yoludur
++Lisans, Programın iletiminden tamamen kaçınmak anlamına gelir.
++
++ 13. GNU Affero Genel Kamu Lisansı ile kullanın.
++
++ Bu Lisansın diğer hükümlerine bakılmaksızın,
++herhangi bir kapsanan eseri lisanslı bir eserle bağlama veya birleştirme izni
++GNU Affero Genel Kamu Lisansı'nın 3. sürümü altında tek bir
++birleştirilmiş çalışma ve ortaya çıkan çalışmayı iletmek. Bu çalışmanın şartları
++Lisans, kapsanan işin olduğu kısım için geçerli olmaya devam edecektir,
++ancak GNU Affero Genel Kamu Lisansı'nın özel gereksinimleri,
++13. madde, bir ağ üzerinden etkileşimle ilgili olarak uygulanacaktır
++kombinasyon böyledir.
++
++ 14. Bu Lisansın Gözden Geçirilmiş Sürümleri.
++
++ Özgür Yazılım Vakfı, aşağıdakilerin gözden geçirilmiş ve/veya yeni sürümlerini yayınlayabilir:
++GNU Genel Kamu Lisansı zaman zaman. Bu tür yeni sürümler
++ruhsal olarak mevcut versiyona benzer olabilir, ancak ayrıntılarda farklılık gösterebilir
++yeni sorunlara veya endişelere değinmek.
++
++ Her versiyona ayırt edici bir versiyon numarası verilir.
++Program, GNU Genel'in belirli bir numaralı sürümünü belirtir
++Kamu Lisansı "veya daha sonraki bir sürüm" buna uygulanırsa,
++bu numaralandırılmış şartlar ve koşulların herhangi birini takip etme seçeneği
++Özgür Yazılım tarafından yayımlanan herhangi bir sonraki sürüm veya sürüm
++Vakıf. Program bir sürüm numarası belirtmiyorsa
++GNU Genel Kamu Lisansı, şimdiye kadar yayınlanmış herhangi bir sürümü seçebilirsiniz
++Özgür Yazılım Vakfı tarafından.
++
++ Program, bir vekilin gelecekteki hangi işlemlerin yapılacağına karar verebileceğini belirtiyorsa
++GNU Genel Kamu Lisansı'nın sürümleri kullanılabilir, bu proxy'nin
++bir sürümün kabulüne ilişkin kamu beyanı sizi kalıcı olarak yetkilendirir
++ Program için o versiyonu seçmek için.
++
++ Daha sonraki lisans sürümleri size ek veya farklı özellikler sağlayabilir
++izinler. Ancak, herhangi bir ek yükümlülük getirilmemiştir
++bir yazar veya telif hakkı sahibi, bir kişiyi takip etmeyi seçmeniz sonucunda
++sonraki versiyon.
++
++ 15. Garanti Reddi.
++
++ PROGRAM İÇİN, İZİN VERİLEN ÖLÇÜDE HİÇBİR GARANTİ YOKTUR
++UYGULANACAK HUKUK. YAZILI OLARAK AKSİ BELİRTİLMEDİKÇE TELİF HAKKI
++SAHİPLER VE/VEYA DİĞER TARAFLAR PROGRAMI GARANTİ OLMADAN "OLDUĞU GİBİ" SAĞLAR
++HERHANGİ BİR TÜRDE, AÇIKÇA BELİRTİLMİŞ YA DA ZIMNİ, BUNLARLA SINIRLI OLMAMAK ÜZERE,
++ SATILABİLİRLİK VE BELİRLİ BİR AMAÇ İÇİN UYGUNLUK İLE İLGİLİ ZIMNİ GARANTİLER
++AMAÇ. PROGRAMIN KALİTESİ VE PERFORMANSI İLE İLGİLİ TÜM RİSK
++SİZİNLEDİR. PROGRAMIN KUSURLU OLDUĞU ORTAYA ÇIKARSA, MALİYETİ SİZ ÜSTLENİRSİNİZ
++ GEREKLİ TÜM BAKIM, ONARIM VEYA DÜZELTME.
++
++ 16. Sorumluluğun Sınırlandırılması.
++
++ YÜRÜRLÜKTEKİ KANUNLARCA GEREKTİRİLMEDİĞİ VEYA YAZILI OLARAK ANLAŞILMADIĞI TAKDİRDE HİÇBİR DURUMDA
++HERHANGİ BİR TELİF HAKKI SAHİBİ VEYA BUNU DEĞİŞTİREN VE/VEYA İLETEN HERHANGİ BİR TARAF
++YUKARIDA İZİN VERİLEN PROGRAM, HERHANGİ BİR ZARAR DAHİL OLMAK ÜZERE, SİZE KARŞI SORUMLU TUTULACAKTIR
++GENEL, ÖZEL, ARIZİ VEYA SONUÇ OLARAK OLUŞAN ZARARLAR
++ PROGRAMIN KULLANILMASI VEYA KULLANILAMAMASI (BUNLARLA SINIRLI OLMAMAK ÜZERE)
++ VERİLERİN VEYA VERİLERİN YANLIŞ HALE GETİRİLMESİ VEYA SİZİN VEYA ÜÇÜNCÜ KİŞİLERİN ZARAR GÖRMESİ
++TARAFLAR VEYA PROGRAMIN DİĞER PROGRAMLARLA BİRLİKTE ÇALIŞMAMASI),
++BÖYLE BİR SAHİBE VEYA DİĞER TARAF, OLASILIKTAN HABERDAR EDİLMİŞ OLSA BİLE;
++BU TÜR ZARARLAR.
++
++ 17. 15 ve 16. Bölümlerin Yorumlanması.
++
++ Garanti reddi ve sorumluluk sınırlaması sağlanmışsa
++yukarıdaki hükümlere, kendi şartlarına göre yerel hukuki etki verilemez,
++İnceleme mahkemeleri, en yakın yerel yasayı uygulayacaktır
++ Bağlantılı tüm hukuki sorumluluklardan mutlak feragat
++Program, bir garanti veya sorumluluk üstlenimi eşlik etmediği sürece
++Ücret karşılığında Programın bir kopyası.
++
++ ŞARTLAR VE KOŞULLARIN SONU
++
++ Bu Şartları Yeni Programlarınıza Nasıl Uygularsınız
++
++ Yeni bir program geliştirirseniz ve bunun en iyilerden biri olmasını istiyorsanız
++halkın kullanımına sunulabilir, bunu başarmanın en iyi yolu onu
++Herkesin bu şartlar altında yeniden dağıtabileceği ve değiştirebileceği özgür yazılım.
++
++ Bunu yapmak için, programa aşağıdaki bildirimleri ekleyin. En güvenlisi
++bunları en etkili şekilde her kaynak dosyasının başına eklemek için
++garantinin hariç tutulduğunu belirtin; ve her dosya en azından şunları içermelidir:
++"telif hakkı" satırı ve tam bildirimin bulunduğu yere bir işaretçi.
++
++ <programın adını ve ne işe yaradığına dair kısa bir fikir veren bir satır.>
++ Telif Hakkı (C) <yıl> <yazarın adı>
++
++ Bu program özgür bir yazılımdır: onu yeniden dağıtabilir ve/veya değiştirebilirsiniz
++ GNU Genel Kamu Lisansı'nın yayınladığı şartlar uyarınca
++ Özgür Yazılım Vakfı, Lisansın 3. sürümü veya
++ (tercihinize göre) herhangi bir sonraki versiyon.
++
++ Bu program yararlı olacağı umuduyla dağıtılmaktadır,
++ ancak HERHANGİ BİR GARANTİ OLMADAN; hatta ima edilen garanti bile olmaksızın
++ SATILABİLİRLİK veya BELİRLİ BİR AMACA UYGUNLUK. Bkz.
++ Daha fazla ayrıntı için GNU Genel Kamu Lisansı'na bakın.
++
++ GNU Genel Kamu Lisansı'nın bir kopyasını almış olmalısınız
++ bu programla birlikte. Değilse, <http://www.gnu.org/licenses/> adresine bakın.
++
++Ayrıca elektronik ve kağıt posta yoluyla sizinle nasıl iletişime geçebileceğimize dair bilgileri de ekleyin.
++
++ Program terminal etkileşimi yapıyorsa, kısa bir çıktı verin
++Etkileşimli modda başlatıldığında buna benzer bir uyarı:
++
++ <program> Telif Hakkı (C) <yıl> <yazarın adı>
++ Bu program kesinlikle HİÇBİR GARANTİ ile gelmez; detaylar için `show w' yazın.
++ Bu özgür bir yazılımdır ve onu yeniden dağıtabilirsiniz
++ belirli koşullar altında; ayrıntılar için `show c' yazın.
++
++ Varsayımsal `w'yi göster' ve `c'yi göster' komutları uygun olanı göstermelidir
++Genel Kamu Lisansının parçaları. Elbette programınızın komutları
++farklı olabilir; bir GUI arayüzü için "hakkında kutusu" kullanırsınız.
++
++ Ayrıca işvereninizi (programcı olarak çalışıyorsanız) veya okulunuzu da almalısınız,
++eğer varsa, program için bir "telif hakkı feragatnamesi" imzalamak.
++Bu konuda daha fazla bilgi ve GNU GPL'yi nasıl uygulayacağınız ve takip edeceğiniz hakkında bilgi için bkz.
++<http://www.gnu.org/licenses/>.
++
++ GNU Genel Kamu Lisansı programınızı dahil etmenize izin vermez
++özel programlara. Programınız bir alt rutin kütüphanesiyse,
++Tescilli uygulamaların birbirine bağlanmasına izin verilmesinin daha yararlı olduğunu düşünebilir
++kütüphane. Eğer yapmak istediğiniz buysa, GNU Lesser General'ı kullanın
++Bu Lisans yerine Kamu Lisansı. Ama önce lütfen okuyun
++<http://www.gnu.org/philosophy/why-not-lgpl.html>.
++
++*/
+ ```
+ 
+ 3. Kvrocks: Kullanıcı hesap ağacını depola
+ 
+ ```Düz metin
+- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
++ docker run -d -[{"constant":true,"girdi":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"guy","type":"address"},{"name":"wad","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true," girişler":[],"name":"toplamTedarik","çıktılar":[{"name":"","type":"uint256"}],"ödenebilir":false,"durumDeğişebilirliği":"görünüm","type":"işlev"},{"sabit":false,"girişler":[{"name":"src","type":"adres"},{"name":"dst","type" :"adres"},{"name":"wad","type":"uint256"}],"name":"transferFrom","çıktılar":[{"name":"","type":"bool"}],"ödenebilir":false,"durumDeğişebilirliği":"ödenemez","type":"işlev tion"},{"constant":false,"inputs":[{"name":"wad","type":"uint256"}],"name":"çekilme","outputs":[],"payable":false,"stateMutability":"ödenemez","type":"function"},{"constant":true,"inputs":[],"name":"decials","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"görünüm","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"b alanceOf","çıktılar":[{"name":"","type":"uint256"}],"ödenebilir":false,"durumDeğişebilirliği":"görünüm","type":"işlev"},{"sabit":true,"girdiler":[],"ad":"sembol","çıktılar":[{"name":"","type":"dize"}],"ödenebilir":false,"durum Değişebilirliği":"görünüm","type":"işlev"},{"sabit":false,"girdiler":[{"name":"dst","type":"adres"},{"name":"wad","type":"uint256"}],"ad":"aktarım","çıktılar":[{"name":"","type":"bool"}],"ödenebilir":false,"durumDeğişebilirliği":"ödenemez","type":"işlev"}, {"sabit":false,"girdiler":[],"name":"depozito","çıktılar":[],"ödenebilir":true,"durumDeğişebilirliği":"ödenebilir","type":"işlev" },{"sabit":true,"girdiler":[{"name":"","type":"adres"},{"name":"","type":"adres"}]," n ame":"ödenek","çıktılar":[{"name":"","type":"uint256"}],"ödenebilir":false,"durumDeğişebilirliği":"görünüm","type":" işlevi"},{"ödenebilir":true,"durumDeğişebilirliği":"ödenebilir","type":"geri dönüş"},{"anonim":false,"girdiler":[{"indexed":true,"ad":"kaynak","type":"adres"},{"indexed":true,"ad" :"adam","type":"adres"}, {"indexed":false,"name":"wad","type":"uint256"}],"name":"Onay","type" :"olay"},{"anonymous":false,"girişler":[{"indexed":true,"name":"src","type":"adres"},{"indexed":true," name":"dst","type":"adres"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Transfer"," tür":"olay"},{"anonim":fa lse,"inputs":[{"indexed":true,"name":"dst","type":"adres"},{"indexed":false,"name":"wad","type": "uint256"}],"name":"Para Yatırma","type":"olay"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src" ,"type":"adres"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Çekme","type":"olay" }]"adres"}],"name":"izinat","çıktılar":[{"name":"","type":"uint256"}],"ödenebilir":false,"durumDeğişebilirliği":" görünüm","type":"işlev"},{"ödenebilir":true,"durumDeğişebilirliği":"ödenebilir","type":"geri dönüş"},{"anonim":false,"girdiler":[{"indexed":true,"name":"kaynak","type":"adres"},{"indexed":true,"name":"adam","type":"adres"},{"indexed":false,"name":"wad","type":"uint256 "}],"name":"Onay","type":"olay"},{"anonim":false,"girdiler":[{"indexed":true,"name":"kaynak","typ e":"adres"},{"indexed":true,"name":"dst","type":"adres"},{"indexed":false,"name":"wad","type" :"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst" ,"type":"adres"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Para Yatırma","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{" indexed":false,"name":"wad","type":"uint256"}],"name":"Çekme","type":"event"}]"adres"}],"name": "izinat","çıktılar":[{"name":"","type":"uint256"}],"ödenebilir":false,"durumDeğişebilirliği":"görünüm","type":"işlev"}, {"ödenebilir":true,"durumDeğişebilirliği":"ödenebilir","type":"geri dönüş"},{"anonim":false,"girdiler":[{"indexed":true,"name":"kaynak","type":"adres"},{"indexed":true,"name" :"adam","type":"adres"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Onay","type" :"olay"},{"anonim":false,"girdiler":[{"indexed":true,"name":"kaynak","typ e":"adres"},{"indexed":true,"name":"dst","type":"adres"},{"indexed":false,"name":"wad","type" :"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst" ,"type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Para Yatırma","type":"event "},{"anonim":yanlış,"girişler":[{"indeksli":doğru,"ad":"kaynak","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Çekme","type":"event"}]"type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Para Yatırma","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Çekilme","type":"event"}]"type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Para Yatırma","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Çekilme","type":"event"}]"wad","type":"uint256"}],"name":"Çekilme","type":"event"}]"wad","type":"uint256"}],"name":"Çekilme","type":"event"}]
+ ```
+ 
+   > Kvrocks kurulumundan sonra bağlantı başarısız olursa:   
+@@ -49,13 +788,9 @@ Programı derlemek için, kullanacağınız Go dil ortamını kullanmanız gerekir.
+ Dışa aktarılan borsa kullanıcı varlığı .csv veri yapısı aşağıdaki gibidir:
+ 
+ ```Düz metin
+-- rn #dizi
+-- id # borsadaki kullanıcının benzersiz tanımlayıcısı
+-- e_xtoken #kullanıcının xtoken sermayesi, örneğin e_BTC
+-- d_xtoken #kullanıcının xtoken borcu, örneğin d_BTC
+-- x_token #kullanıcının net varlık değeri, x_token = e_xtoken - d_xtoken
+-- xtoken_usdt_price #xtoken fiyatı
+-- total_net_balance_usdt #tüm kullanıcıların tokenlerinin toplam USDT değeri
++"KanıtCsv": "./config/proof.csv",
++ "ZkKeyVKDirectoryAndPrefix": "./zkpor864",
++ "CexAssetsInfo": [{"ToplamÖzsermaye":10049232946,"ToplamBorç":0,"TemelFiyat":3960000000,"Sembol":"1inç","İndeks":0},{"ToplamÖzsermaye":421836,"ToplamBorç":0,"TemelFiyat":564000000000,"Sembol":"aave","İndeks":1},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelPr buz":79800000,"Sembol":"ach","İndeks":2},{"ToplamÖzsermaye":3040000,"ToplamBorç":0,"TemelFiyat":25460000000,"Sembol":"acm","İndeks":3},{"ToplamÖzsermaye":17700050162640,"ToplamBorç":0,"TemelFiyat":2784000000,"Sembol":"ada","İndeks":4}, {"ToplamSermaye":485400000,"ToplamBorç":0,"TemelFiyat":1182000000,"Sembol":"adx","İndeks":5},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":907000000,"Sembol":"aergo","İndeks":6},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":27200000 00,"Sembol":"agld","İndeks":7},{"ToplamÖzsermaye":1969000000,"ToplamBorç":0,"TemelFiyat":30500000,"Sembol":"akro","İndeks":8},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":141000000000,"Sembol":"alcx","İndeks":9},{"ToplamÖzsermaye":1548 3340912,"ToplamBorç":0,"TemelFiyat":1890000000,"Sembol":"algo","İndeks":10},{"ToplamÖzsermaye":3187400,"ToplamBorç":0,"TemelFiyat":11350000000,"Sembol":"alice","İndeks":11},{"ToplamÖzsermaye":1760000,"ToplamBorç":0,"TemelFiyat":2496000 000,"Sembol":"alpaca","İndeks":12},{"ToplamÖzsermaye":84596857600,"ToplamBorç":0,"TemelFiyat":785000000,"Sembol":"alfa","İndeks":13},{"ToplamÖzsermaye":3672090936,"ToplamBorç":0,"TemelFiyat":20849000000,"Sembol":"alpine","İndeks":14}, {"ToplamÖzsermaye":198200000,"ToplamBorç":0,"TemelFiyat":132600000,"Sembol":"amb","İndeks":15},{"ToplamÖzsermaye":53800000,"ToplamBorç":0,"TemelFiyat":32200000,"Sembol":"amp","İndeks":16},{"ToplamÖzsermaye":3291606210,"ToplamBorç":0,"TemelP pirinç":340300000,"Sembol":"anc","İndeks":17},{"ToplamÖzsermaye":192954000,"ToplamBorç":0,"TemelFiyat":166000000,"Sembol":"ankr","İndeks":18},{"ToplamÖzsermaye":2160000,"ToplamBorç":0,"TemelFiyat":20940000000,"Sembol":"karınca","İndeks":19},{"ToplamÖzsermaye":5995002000,"ToplamBorç":0,"TemelFiyat":40370000000,"Sembol":"ape","İndeks":20},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":11110000000,"Sembol":"api3","İndeks":21},{"ToplamÖzsermaye":53728000,"ToplamBorç":0,"TemelFiyat" :38560000000,"Sembol":"apt","İndeks":22},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":68500000000,"Sembol":"ar","İndeks":23},{"ToplamÖzsermaye":55400000,"ToplamBorç":0,"TemelFiyat":667648400,"Sembol":"ardr","İndeks":24},{"ToplamÖzsermaye" :8320000,"ToplamBorç":0,"TemelFiyat":266200000,"Sembol":"arpa","İndeks":25},{"ToplamÖzsermaye":18820000,"ToplamBorç":0,"TemelFiyat":401000000,"Sembol":"astr","İndeks":26},{"ToplamÖzsermaye":13205405410,"ToplamBorç":0,"TemelFiyat":934000000 ,"Sembol":"ata","İndeks":27},{"ToplamÖzsermaye":7016230960,"ToplamBorç":0,"TemelFiyat":102450000000,"Sembol":"atom","İndeks":28},{"ToplamÖzsermaye":2619441828,"ToplamBorç":0,"TemelFiyat":40900000000,"Sembol":"müzayede","İndeks":29},{"ToplamE quity":9640198,"ToplamBorç":0,"TemelFiyat":1432000000,"Sembol":"ses","İndeks":30},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":2306000000000,"Sembol":"otomatik","İndeks":31},{"ToplamÖzsermaye":886400,"ToplamBorç":0,"TemelFiyat":539000000 0,"Sembol":"ava","İndeks":32},{"ToplamÖzsermaye":2883562350,"ToplamBorç":0,"TemelFiyat":117800000000,"Sembol":"avax","İndeks":33},{"ToplamÖzsermaye":1864300912,"ToplamBorç":0,"TemelFiyat":68200000000,"Sembol":"axs","İndeks":34},{"ToplamÖzsermaye ity":843870,"ToplamBorç":0,"TemelFiyat":23700000000,"Sembol":"porsuk","İndeks":35},{"ToplamÖzsermaye":114869291528,"ToplamBorç":0,"TemelFiyat":1379000000,"Sembol":"pişir","İndeks":36},{"ToplamÖzsermaye":95400,"ToplamBorç":0,"TemelFiyat":541 10000000,"Sembol":"bal","İndeks":37},{"ToplamÖzsermaye":123113880,"ToplamBorç":0,"TemelFiyat":14610000000,"Sembol":"bant","İndeks":38},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":37100000000,"Sembol":"çubuk","İndeks":39},{"ToplamÖzsermaye":73090049578,"ToplamBorç":0,"TemelFiyat":1774000000,"Sembol":"bat","İndeks":40},{"ToplamÖzsermaye":28891300,"ToplamBorç":0,"TemelFiyat":1017000000000,"Sembol":"bch","İndeks":41},{"ToplamÖzsermaye":19889623294,"ToplamBorç":0,"TemelFiyat":41300 00000,"Sembol":"bel","İndeks":42},{"ToplamÖzsermaye":374840602180,"ToplamBorç":0,"TemelFiyat":699700000,"Sembol":"beta","İndeks":43},{"ToplamÖzsermaye":270294580,"ToplamBorç":0,"TemelFiyat":12290900000000,"Sembol":"beth","İndeks":44},{"Toplam lSermaye":35692901600,"ToplamBorç":0,"TemelFiyat":2730000000,"Sembol":"bico","İndeks":45},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":639000,"Sembol":"bidr","İndeks":46},{"ToplamSermaye":240200000,"ToplamBorç":0,"TemelFiyat":538000000, "Sembol":"blz","İndeks":47},{"ToplamÖzsermaye":83614634622,"ToplamBorç":0,"TemelFiyat":2599000000000,"Sembol":"bnb","İndeks":48},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":3490000000,"Sembol":"bnt","İndeks":49},{"ToplamÖzsermaye":1560,"Toplam alDebt":0,"Temel Fiyat":592000000000,"Sembol":"bnx","İndeks":50},{"Toplam Özsermaye":2076000,"Toplam Borç":0,"Temel Fiyat":32630000000,"Sembol":"tahvil","İndeks":51},{"Toplam Özsermaye":44699589660,"Toplam Borç":0,"Temel Fiyat":1768000000,"Sembol":" bsw","İndeks":52},{"ToplamÖzsermaye":291716078,"ToplamBorç":0,"TemelFiyat":169453900000000,"Sembol":"btc","İndeks":53},{"ToplamÖzsermaye":15500321300000000,"ToplamBorç":0,"TemelFiyat":6300,"Sembol":"bttc","İndeks":54},{"ToplamÖzsermaye":7077154 6756,"ToplamBorç":0,"TabanFiyat":5240000000,"Symbol":"burger","Endeks":55},{"TotalEquity":12058907297354,"ToplamBorç":1476223055432,"BazFiyat":10000000000,"Sembol" :"busd","Index":56},{"TotalEquity":34716440000,"TotalBorç":0,"Bas ePrice":1647000000,"Sembol":"c98","İndeks":57},{"ToplamÖzsermaye":1541723702,"ToplamBorç":0,"TemelFiyat":33140000000,"Sembol":"kek","İndeks":58},{"ToplamÖzsermaye":2112000,"ToplamBorç":0,"TemelFiyat":5200000000,"Sembol":"celo","İndeks":59},{"ToplamÖzsermaye":317091540000,"ToplamBorç":0,"TemelFiyat":101000000,"Sembol":"celr","İndeks":60},{"ToplamÖzsermaye":137111365560,"ToplamBorç":0,"TemelFiyat":228000000,"Sembol":"cfx","İndeks":61},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat e":1820000000,"Sembol":"satranç","İndeks":62},{"ToplamÖzsermaye":258540000,"ToplamBorç":0,"TemelFiyat":1140000000,"Sembol":"chr","İndeks":63},{"ToplamÖzsermaye":289172288882,"ToplamBorç":0,"TemelFiyat":1099000000,"Sembol":"chz","İndeks":64} ,{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":25100000,"Sembol":"ckb","İndeks":65},{"ToplamÖzsermaye":1851135024806,"ToplamBorç":0,"TemelFiyat":535500000,"Sembol":"clv","İndeks":66},{"ToplamÖzsermaye":155010000,"ToplamBorç":0,"TemelFiyat": 5202000000,"Sembol":"cocos","İndeks":67},{"ToplamÖzsermaye":52093390,"ToplamBorç":0,"TemelFiyat":335800000000,"Sembol":"comp","İndeks":68},{"ToplamÖzsermaye":13991592000,"ToplamBorç":0,"TemelFiyat":44500000,"Sembol":"cos","İndeks":69},{"Kime talEquity":51240788068,"ToplamBorç":0,"TemelFiyat":557000000,"Sembol":"coti","İndeks":70},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":107900000000,"Sembol":"cream","İndeks":71},{"ToplamSermaye":15940224,"ToplamBorç":0,"TemelFiyat":5 470000000,"Sembol":"crv","İndeks":72},{"ToplamÖzsermaye":2336000,"ToplamBorç":0,"TemelFiyat":7450000000,"Sembol":"ctk","İndeks":73},{"ToplamÖzsermaye":88860000,"ToplamBorç":0,"TemelFiyat":1059000000,"Sembol":"ctsi","İndeks":74},{"ToplamÖzsermaye":74},{"ToplamÖzsermaye":740000000,"ToplamÖzsermaye":74 ... ity":440400000,"ToplamBorç":0,"TemelFiyat":1763000000,"Sembol":"ctxc","İndeks":75},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":3375000000,"Sembol":"cvp","İndeks":76},{"ToplamÖzsermaye":176202,"ToplamBorç":0,"TemelFiyat":30810000000,"S ymbol":"cvx","İndeks":77},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":9999000100,"Symbol":"dai","İndeks":78},{"ToplamÖzsermaye":90702266836,"ToplamBorç":0,"TemelFiyat":1293500000,"Symbol":"dar","İndeks":79},{"ToplamÖzsermaye":29386961406,"ToplamBorç":0,"TemelFiyat":458300000000,"Sembol":"tire","İndeks":80},{"ToplamÖzsermaye":1628888000,"ToplamBorç":0,"TemelFiyat":235500000,"Sembol":"veri","İndeks":81},{"ToplamÖzsermaye":0,"ToplamD ebt":0,"Temel Fiyat":186229836100,"Sembol":"dcr","İndeks":82},{"Toplam Özsermaye":0,"Toplam Borç":0,"Temel Fiyat":15920000000,"Sembol":"dego","İndeks":83},{"Toplam Özsermaye":26105549312822,"Toplam Borç ":0,"TemelFiyat":6830000,"Sembol":"dent","İndeks":84},{"ToplamÖzsermaye":670658000,"ToplamBorç":0,"TemelFiyat":24000000000,"Sembol":"dexe","İndeks":85},{"ToplamÖzsermaye":517372774000,"ToplamBorç ":0,"Temel Fiyat":82200000,"Sembol":"dgb","İndeks":86},{"Toplam Özsermaye":1120000,"Toplam Borç":0,"Temel Fiyat":2970000000,"Sembol":"dia","İndeks":87},{"Toplam Özsermaye":0,"Toplam Borç":0,"Temel Fiyat": 151800000,"Sembol":"rıhtım","İndeks":88},{"ToplamÖzsermaye":19453393384,"ToplamBorç":0,"TemelFiyat":987000000,"Sembol":"dodo","İndeks":89},{"ToplamÖzsermaye":25526548451614,"ToplamBorç":0,"TemelFiyat ce":723900000,"Sembol":"doge","İndeks":90},{"ToplamÖzsermaye":466049240950,"ToplamBorç":0,"TemelFiyat":46820000000,"Sembol":"nokta","İndeks":91},{"ToplamÖzsermaye":69200000,"ToplamBorç":0,"TemelFiyat e":3138000000,"Sembol":"drep","İndeks":92},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":870000000,"Sembol":"alacakaranlık","İndeks":93},{"ToplamÖzsermaye":45675816000,"ToplamBorç":0,"TemelFiyat":121200 00000,"Sembol":"dydx","İndeks":94},{"ToplamÖzsermaye":241920370,"ToplamBorç":0,"TemelFiyat":343400000000,"Sembol":"egld","İndeks":95},{"ToplamÖzsermaye":3640000,"ToplamBorç":0,"TemelFiyat":1691000{"TotalEquity":26105549312822,"TotalBorç":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalBorç":0,"BasePrice" :24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalBorç":0,"BasePrice":82200000,"Symbol":"dgb","Index":86 },{"TotalEq uity":1120000,"ToplamBorç":0,"TemelFiyat":2970000000,"Sembol":"dia","İndeks":87},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":151800000 ,"Sembol":"rıhtım","İndeks":88},{"ToplamSermaye":19453393384,"ToplamBorç":0,"TemelFiyat":987000000,"Sembol":"dodo","İndeks":89}, {"ToplamSermaye":25526548451614," talDebt":0,"Temel Fiyat":723900000,"Sembol":"doge","İndeks":90},{"Toplam Özsermaye":466049240950,"Toplam Borç":0,"Temel Fiyat":46820000000,"Sembol":" nokta","İndeks":91},{"ToplamÖzsermaye":69200000,"ToplamBorç":0,"TemelFiyat":3138000000,"Sembol":"drep","İndeks":92},{"ToplamÖzsermaye":0 ,"ToplamBorç":0,"TemelÖz ce":870000000,"Sembol":"alacakaranlık","İndeks":93},{"ToplamÖzsermaye":45675816000,"ToplamBorç":0,"TemelFiyat":12120000000,"Sembol":"dydx","İndeks" :94},{"Toplam Özsermaye":241920370,"Toplam Borç":0,"Temel Fiyat":343400000000,"Sembol":"egld","İndeks":95},{"Toplam Özsermaye":3640000,"Toplam Borç":0 ,"Temel Fiyat":1691000{"TotalEquity":26105549312822,"TotalBorç":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalBorç":0,"BasePrice" :24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalBorç":0,"BasePrice":82200000,"Symbol":"dgb","Index":86 },{"TotalEq uity":1120000,"ToplamBorç":0,"TemelFiyat":2970000000,"Sembol":"dia","İndeks":87},{"ToplamSermaye":0,"ToplamBorç":0,"TemelFiyat":151800000 ,"Sembol":"rıhtım","İndeks":88},{"ToplamSermaye":19453393384,"ToplamBorç":0,"TemelFiyat":987000000,"Sembol":"dodo","İndeks":89}, {"ToplamSermaye":25526548451614," talDebt":0,"Temel Fiyat":723900000,"Sembol":"doge","İndeks":90},{"Toplam Özsermaye":466049240950,"Toplam Borç":0,"Temel Fiyat":46820000000,"Sembol":" nokta","İndeks":91},{"ToplamÖzsermaye":69200000,"ToplamBorç":0,"TemelFiyat":3138000000,"Sembol":"drep","İndeks":92},{"ToplamÖzsermaye":0 ,"ToplamBorç":0,"TemelÖz ce":870000000,"Sembol":"alacakaranlık","İndeks":93},{"ToplamÖzsermaye":45675816000,"ToplamBorç":0,"TemelFiyat":12120000000,"Sembol":"dydx","İndeks" :94},{"Toplam Özsermaye":241920370,"Toplam Borç":0,"Temel Fiyat":343400000000,"Sembol":"egld","İndeks":95},{"Toplam Özsermaye":3640000,"Toplam Borç":0 ,"Temel Fiyat":169100046820000000,"Sembol":"nokta","İndeks":91},{"ToplamÖzsermaye":69200000,"ToplamBorç":0,"TemelFiyat":3138000000,"Sembol":"drep","İndeks":92},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":870000000,"Sembol":"alacakaranlık","İndeks":93},{"ToplamÖzsermaye":4 5675816000,"ToplamBorç":0,"TemelFiyat":12120000000,"Sembol":"dydx","İndeks":94},{"ToplamÖzsermaye":241920370,"ToplamBorç":0,"TemelFiyat":343400000000,"Sembol":"egld","İndeks":95},{"ToplamÖzsermaye":3640000,"ToplamBorç":0,"TemelFiyat":169100046820000000,"Sembol":"nokta","İndeks":91},{"ToplamÖzsermaye":69200000,"ToplamBorç":0,"TemelFiyat":3138000000,"Sembol":"drep","İndeks":92},{"ToplamÖzsermaye":0,"ToplamBorç":0,"TemelFiyat":870000000,"Sembol":"alacakaranlık","İndeks":93},{"ToplamÖzsermaye":4 5675816000,"ToplamBorç":0,"TemelFiyat":12120000000,"Sembol":"dydx","İndeks":94},{"ToplamÖzsermaye":241920370,"ToplamBorç":0,"TemelFiyat":343400000000,"Sembol":"egld","İndeks":95},{"ToplamÖzsermaye":3640000,"ToplamBorç":0,"TemelFiyat":1691000
+ ```
+ 
+ Ayrıntılar için `./example_data/example_users.csv` dosyasına bakın.
+@@ -331,27 +1066,33 @@ ana
+ Doğrulamayı başlatmak için aşağıdaki komutu çalıştırın
+ 
+ ```Düz metin
+-./main cex'i doğrula
++./main cex'i doğrula, [zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/17051675/zkmerkle_cex_20240520.tar.gz)
++[zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/17051675/zkmerkle_cex_20240520.tar.gz)
++
+ ```
+ 
+ Doğrulama başarılı olursa, çıktı olarak şu verilir:
+ 
+ ```Düz metin
+-Tüm kanıtlar doğrulandı!!!
++Hepsi , [Windows2022-Readme.md](https://github.com/user-attachments/files/17051708/Windows2022-Readme.md)
++[Windows2022-Readme.md](https://github.com/user-attachments/files/17051708/Windows2022-Readme.md)
++kanıtlar doğrula kaydet!!!
+ ```
+ 
+ ## Kullanıcı Kendi Varlıklarını Doğrular
+ 
+ ```Düz metin
++[Gate.io PoR Uygulama güncellemesi.pdf](https://github.com/user-attachments/files/17051719/Gate.io.PoR.Implementation.upd.pdf)
++[Gate.io PoR Uygulama güncellemesi.pdf](https://github.com/user-attachments/files/17051719/Gate.io.PoR.Implementation.upd.pdf)
+ ./main kullanıcıyı doğrula
+ ```
+ 
+ Doğrulama başarılı olursa, çıktı olarak şu verilir:
+ 
+-```Düz metin
+-merkle bırak karma: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+-geçişinizi doğrulayın!!!
+-```
++
++![cüzdan_20240511-231342_Gateio](https://github.com/user-attachments/assets/9aa7552c-2503-483b-a9c4-73d64f8ad741)
++![cüzdan_20240511-231342_Gateio](https://github.com/user-attachments/assets/9aa7552c-2503-483b-a9c4-73d64f8ad741)
++
+ 
+ ## Katkı
+ 
+@@ -361,4 +1102,4 @@ Merkezi olmayan borsalara ilgi duyan tüm dostlarımızı bekliyoruz, zk-SNARK,
+ ## Lisans
+ Telif Hakkı 2023 © Gate Technology Inc.. Tüm hakları saklıdır.
+ 
+-GPLv3 lisansı altında lisanslanmıştır.
+\ Dosyanın sonunda yeni satır yok
++GPLv3 lisansı altında lisanslanmıştır.
