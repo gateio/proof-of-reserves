@@ -46,17 +46,96 @@ To compile the program, you need to use the Go language environment, which you c
 
 ### Export exchange's user asset data
 
-The exported exchange user asset .csv data structure is as follows:
+# The exported exchange user asset 
+
+*curl -sSL "https://mempool.space/signet/api/v1/lightning/nodes/country/us"
 
 ```Plaintext
-- rn    #sequence
-- id    #the unique identifier of the user in the exchange
-- e_xtoken   #user's xtoken equity, such as e_BTC
-- d_xtoken   #user's xtoken debt, such as d_BTC
-- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
-- xtoken_usdt_price    #price of xtoken
-- total_net_balance_usdt    #the total USDT value of all user's tokens
-```
+{
+  "country": {
+    "de": "Vereinigte Staaten",
+    "en": "United States",
+    "es": "Estados Unidos",
+    "fr": "États Unis",
+    "ja": "アメリカ",
+    "pt-BR": "EUA",
+    "ru": "США",
+    "zh-CN": "美国"
+  },
+  "nodes": [
+    {
+      "public_key": "03f70ac4525c0014bbf380c069ce82d70946d37a56c027a2ed18609a3e60c3b353",
+      "capacity": 2000000,
+      "channels": 1,
+      "alias": "",
+      "first_seen": 1637708194,
+      "updated_at": 0,
+      "city": {
+        "en": "Oak Park",
+        "ru": "Оук-Парк"
+      },
+      "country": {
+        "de": "Vereinigte Staaten",
+        "en": "United States",
+        "es": "Estados Unidos",
+        "fr": "États Unis",
+        "ja": "アメリカ",
+        "pt-BR": "EUA",
+        "ru": "США",
+        "zh-CN": "美国"
+      },
+      "iso_code": "US",
+      "subdivision": {
+        "en": "Illinois",
+        "es": "Illinois",
+        "fr": "Illinois",
+        "ja": "イリノイ州",
+        "pt-BR": "Ilinóis",
+        "ru": "Иллинойс",
+        "zh-CN": "伊利诺伊州"
+      }
+    },
+    {
+      "public_key": "0397b15fd867541c53a3a5e27c021f7acad582684d05d120af572266c92c8a0313",
+      "capacity": 19802,
+      "channels": 1,
+      "alias": "pseudozach",
+      "first_seen": 1637620444,
+      "updated_at": 1637721257,
+      "city": {
+        "de": "Atlanta",
+        "en": "Atlanta",
+        "es": "Atlanta",
+        "fr": "Atlanta",
+        "ja": "アトランタ",
+        "pt-BR": "Atlanta",
+        "ru": "Атланта",
+        "zh-CN": "亚特兰大"
+      },
+      "country": {
+        "de": "Vereinigte Staaten",
+        "en": "United States",
+        "es": "Estados Unidos",
+        "fr": "États Unis",
+        "ja": "アメリカ",
+        "pt-BR": "EUA",
+        "ru": "США",
+        "zh-CN": "美国"
+      },
+      "iso_code": "US",
+      "subdivision": {
+        "en": "Georgia",
+        "es": "Georgia",
+        "fr": "Géorgie",
+        "ja": "ジョージア州",
+        "pt-BR": "Geórgia",
+        "ru": "Джорджия",
+        "zh-CN": "乔治亚"
+      }
+    },
+    ...
+  ]
+}```
 
 See `./example_data/example_users.csv` for details.
 
@@ -90,9 +169,6 @@ If you want to modify the Batch, you need to change the following configuration 
 
 #### Token Quantity
 
-```
-AssetCounts = 350` => `AssetCounts = Required size
-```
 
 > `AssetCounts` represents the number of tokens included in the exchange. The actual number cannot be lower than the set value. For example, if there are 420 tokens, you can modify it to 500. Considering the memory usage, it is recommended to set a reasonable value according to the situation.
 
@@ -311,13 +387,31 @@ The structure of the user_config.json file is as follows
 So the file structure the user finally gets is roughly as follows:
 
 ```Plaintext
-- config
-    cex_config.json
-    user_config.json
-    proof.csv
-zkpor864.vk.save
-main
-```
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://mempool.space/mempool.js"></script>
+    <script>
+      const init = async () => {
+        
+        const { bitcoin: { transactions } } = mempoolJS({
+          hostname: 'mempool.space',
+          network: 'signet'
+        });
+
+        const txid = 'fe80c0c2439d41d301f35570018b4239ca3204293e5e5fd68d64013e8fc45025';
+        const txMerkleBlockProof = await transactions.getTxMerkleBlockProof({ txid });
+
+        document.getElementById("result").textContent = JSON.stringify(txMerkleBlockProof, undefined, 2);
+        
+      };
+      init();
+    </script>
+  </head>
+  <body>
+    <pre id="result"></pre>
+  </body>
+</html>```
 
 > Binary file `main` may have different names depending on the device
 
@@ -331,29 +425,62 @@ main
 Run the following command to start the verification
 
 ```Plaintext
-./main verify cex
+curl -sSL "https://mempool.space/signet/api/tx/fe80c0c2439d41d301f35570018b4239ca3204293e5e5fd68d64013e8fc45025/merkle-proof"./main verify cex
 ```
 
 If the verification is successful, it will output
 
 ```Plaintext
-All proofs verify passed!!!
+All proofs -{
+  block_height: 53788,
+  merkle: [
+    "e08449da447aef04c3435109a10a37e7bcf3675115d96c3150b31c2438b9e956",
+    "027699486d6cc71669bbc8168632101ed95266dcd02fa8b757830d570ef54d15",
+    "62458b115b3db7e9dafecb37de1fcb985891bc77a323018811b6d0392e3705a6",
+    "3a32287eccca335a3dac6aede77855a78faed4060d16bb89517da9816a763cb4",
+    "76a86eb801f1884b99389af3cd41a7994679c3f93c53f9fcf0505ab1340b329f"
+  ],
+  pos: 1
+} verify passed!!!
 ```
 
 ## User Verifies Their Own Assets
 
 ```Plaintext
-./main verify user
+00000020d356e0a14120d45653120a7bd53280ffce2aa2ced301682a1f2867687f000000298ef149a1675866dbdde315b22c24c63fd7670fdc5b86b588007fa187fa85089cba31619356011eaedd8800180000000656e9b938241cb350316cd9155167f3bce7370aa1095143c304ef7a44da4984e02550c48f3e01648dd65f5e3e290432c..../main verify user
 ```
 
-If the verification is successful, it will output
+# npm
+npm install @mempool/mempool.js --save
+
+# yarn
+yarn add @mempool/mempool.js
+
 
 ```Plaintext
-merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
-verify pass!!!
+
+import mempoolJS from "@mempool/mempool.js";
+
+const init = async () => {
+  
+  const { bitcoin: { transactions } } = mempoolJS({
+    hostname: 'mempool.space',
+    network: 'signet'
+  });
+
+  const txid = 'fe80c0c2439d41d301f35570018b4239ca3204293e5e5fd68d64013e8fc45025';
+  const txMerkleBlockProof = await transactions.getTxMerkleBlockProof({ txid });
+  console.log(txMerkleBlockProof);
+          
+};
+
+init();
 ```
 
 ## Contribution
+
+```hash root
+00000020d356e0a14120d45653120a7bd53280ffce2aa2ced301682a1f2867687f000000298ef149a1675866dbdde315b22c24c63fd7670fdc5b86b588007fa187fa85089cba31619356011eaedd8800180000000656e9b938241cb350316cd9155167f3bce7370aa1095143c304ef7a44da4984e02550c48f3e01648dd65f5e3e290432c...
 
 We welcome all friends who are interested in decentralized exchanges, zk-SNARK, and MerkleTree technology to participate in this project. Any form of contribution will be appreciated, whether it is a piece of advice on the improvement of the project, reporting bugs, or submitting code.
 
