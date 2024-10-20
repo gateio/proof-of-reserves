@@ -21,19 +21,55 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 1. Mysql: Store proof, user_proof, and witness
 
 ```Plaintext
- docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+# npm
+npm install @mempool/mempool.js --save
+
+# yarn
+yarn add @mempool/mempool.js
+
 ```
 
 2. Redis: Distributed lock
 
 ```Plaintext
- docker run -d --name zk-redis -p 6379:6379 redis
+import mempoolJS from "@mempool/mempool.js";
+
+const init = async () => {
+  
+  const { bitcoin: { transactions } } = mempoolJS({
+    hostname: 'mempool.space'
+  });
+
+  const txid = '15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521';
+  const txMerkleProof = await transactions.getTxMerkleProof({ txid });
+  console.log(txMerkleProof);
+          
+};
+
+init();
+
 ```
 
 3. Kvrocks: Store user account tree
 
 ```Plaintext
- docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
+ {
+  block_height: 363348,
+  merkle: [
+    "acf931fe8980c6165b32fe7a8d25f779af7870a638599db1977d5309e24d2478",
+    "ee25997c2520236892c6a67402650e6b721899869dcf6715294e98c0b45623f9",
+    "790889ac7c0f7727715a7c1f1e8b05b407c4be3bd304f88c8b5b05ed4c0c24b7",
+    "facfd99cc4cfe45e66601b37a9637e17fb2a69947b1f8dc3118ed7a50ba7c901",
+    "8c871dd0b7915a114f274c354d8b6c12c689b99851edc55d29811449a6792ab7",
+    "eb4d9605966b26cfa3bf69b1afebe375d3d6aadaa7f2899d48899b6bd2fd6a43",
+    "daa1dc59f22a8601b489fc8a89da78bc35415291c62c185e711b8eef341e6e70",
+    "102907c1b95874e2893c6f7f06b45a3d52455d3bb17796e761df75aeda6aa065",
+    "baeede9b8e022bb98b63cb765ba5ca3e66e414bfd37702b349a04113bcfcaba6",
+    "b6f07be94b55144588b33ff39fb8a08004baa03eb7ff121e1847d715d0da6590",
+    "7d02c62697d783d85a51cd4f37a87987b8b3077df4ddd1227b254f59175ed1e4"
+  ],
+  pos: 1465
+}
 ```
 
   > If the connection fails after installing kvrocks:   
@@ -216,7 +252,23 @@ You can run the following command to query the execution status:
 When the operation is finished, it will return:
 
 ```Plaintext
-Total witness item 50, Published item 0, Pending item 0, Finished item 50
+{
+  block_height: 363348,
+  merkle: [
+    "acf931fe8980c6165b32fe7a8d25f779af7870a638599db1977d5309e24d2478",
+    "ee25997c2520236892c6a67402650e6b721899869dcf6715294e98c0b45623f9",
+    "790889ac7c0f7727715a7c1f1e8b05b407c4be3bd304f88c8b5b05ed4c0c24b7",
+    "facfd99cc4cfe45e66601b37a9637e17fb2a69947b1f8dc3118ed7a50ba7c901",
+    "8c871dd0b7915a114f274c354d8b6c12c689b99851edc55d29811449a6792ab7",
+    "eb4d9605966b26cfa3bf69b1afebe375d3d6aadaa7f2899d48899b6bd2fd6a43",
+    "daa1dc59f22a8601b489fc8a89da78bc35415291c62c185e711b8eef341e6e70",
+    "102907c1b95874e2893c6f7f06b45a3d52455d3bb17796e761df75aeda6aa065",
+    "baeede9b8e022bb98b63cb765ba5ca3e66e414bfd37702b349a04113bcfcaba6",
+    "b6f07be94b55144588b33ff39fb8a08004baa03eb7ff121e1847d715d0da6590",
+    "7d02c62697d783d85a51cd4f37a87987b8b3077df4ddd1227b254f59175ed1e4"
+  ],
+  pos: 1465
+}
 ```
 
 Make sure all the witness items are in the finished state, which means the prover operation is completed.
@@ -295,14 +347,46 @@ We need to use the `userproof` table generated in the above user proof stage, th
 The structure of the user_config.json file is as follows
 
 ```Plaintext
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://mempool.space/mempool.js"></script>
+    <script>
+      const init = async () => {
+        
+        const { bitcoin: { transactions } } = mempoolJS({
+          hostname: 'mempool.space'
+        });
+
+        const txid = '15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521';
+        const txMerkleProof = await transactions.getTxMerkleProof({ txid });
+
+        document.getElementById("result").textContent = JSON.stringify(txMerkleProof, undefined, 2);
+        
+      };
+      init();
+    </script>
+  </head>
+  <body>
+    <pre id="result"></pre>
+  </body>
+</html>
 {
-  "Arrangement":7,
-  "UniqueIdentification":"00010b7c0a8b51bfa5eca14f0068670bd7fda4063f9bcac4f02c44a00144a80c",
-  "TotalAssetEquity":445548224227483774000,
-  "TotalAssetDebt":0,
-  "AssetDetails":[{"Index":48,"Equity":280,"Debt":0},{"Index":53,"Equity":1020,"Debt":0},{"Index":54,"Equity":3261550200000000,"Debt":0},{"Index":72,"Equity":108600,"Debt":0},{"Index":91,"Equity":9068922000,"Debt":0},{"Index":190,"Equity":13752000,"Debt":0},{"Index":285,"Equity":70860,"Debt":0}],
-  "TreeRootHash":"2da42ab6586ef6ad51b4bc8063ce92dcefb951572a26597346b7f78c1329ef0b",
-  "MerkleProofEncode":["EmvQ5Sh50gHD96PfN2/o49gT7xVuuX3P22KLVmpWyVo=","JLEw2CGGAPi2TWn7GMbdlwT0wJbpVfJ4A+XLXNYz9X4=","BRCCQWeZy3fmPgiciBNdDMmugJtcQnxfI/b0EU4MlR8=","K8P8ZvYSY9iEreGnatTO8h1/I3Q+ZSkBA3TYYI1vN1g=","GwxhwdTBri22QcY4Pj9B3TkkLpOTGlCpqnsmxVquaeQ=","JIB+i/tDXSbEyK5ASwx2Tgbtm2ckJrJ30qnLm3FGhvs=","I0AzcupyH3clJooxcjaZlOIWOTY531UBJIMpfu2ds9o=","GYU5H/xfC18jR4LXz3axjKgJOaAbSAz3vO/taxTTMDE=","GML/iwCEjgYlSAmd4cQQhKsjH+xscIG6hbM5HP+OP/I=","BBXHrrH1oIGsjK1PsZt1d+ovsDW5IvHxFUlt8CJ3j/M=","F6GyEMWOjvKBgKDCCkQiOfc5SvGEt2MWyQTzszXzd6Y=","JDZjD4o0q6cGYJzj0BBaBEBEN4y4UjYgMSNIXf2P6Ps=","C+Mh1228yGv2Or6yQs3U0sjBzxxWJPTyH5GNG3FzMbk=","Jpo3tkE2KgMxWoEdMM1sOyJsM9YjsI9aONsEEqmMPnA=","FaWOvl42fYbklbc9WgWFqeW3Q/54KXT5zYdIGyCh9iE=","EvcLzRuRio6YT9QjSPp0GGGFYSIW8fKOqQlcOXFBBwo=","LJos88T9kz5kG0o+yeNX0ij+WwrOEIqRVpJtOrUrnns=","CFv3HhUsTXNa3iT/cc+GhD9lV+weuSWoJJRVgZmn7fQ=","EyfPjcon6R+nXBDT/9++ddQqlxiBaSaTMBiC0R6NPoM=","HOtPMAkz3JJG3n0bxNIqkR1p/Q758Em1Jjn1KE6A2mg=","Lq3n7B3Bs7ILnDLG17szIf9O0OdotsWpSLwejnJVcLY=","HthvmzZ/MHbOWVSuFyc9sUvuSz0ddveEwoyQExrim5k=","BOxHEGxRtmNch1R57kgKMxiBVnR/tCo9y3XcJco7Saw=","Dilkpy2L945iR+BsbaffA7MBZSNofd2PdZSkzN48DOE=","Fotw+U5orv9231KkpBYOXM+odtZGgCaNw5zOY+xZ5Oc=","J7pOZTvxtC7B8RzevUvrd90GfrH2oxtRqkEF+mFdCuc=","EUZQwQDUH48osqrtgcPuAQsQvdVKTC+hYmKvIhzImZQ=","HKC2vx3pnDTdfyrzYjCbJMcxojJfvuyzj2/rMMiMplQ="]
+  block_height: 363348,
+  merkle: [
+    "acf931fe8980c6165b32fe7a8d25f779af7870a638599db1977d5309e24d2478",
+    "ee25997c2520236892c6a67402650e6b721899869dcf6715294e98c0b45623f9",
+    "790889ac7c0f7727715a7c1f1e8b05b407c4be3bd304f88c8b5b05ed4c0c24b7",
+    "facfd99cc4cfe45e66601b37a9637e17fb2a69947b1f8dc3118ed7a50ba7c901",
+    "8c871dd0b7915a114f274c354d8b6c12c689b99851edc55d29811449a6792ab7",
+    "eb4d9605966b26cfa3bf69b1afebe375d3d6aadaa7f2899d48899b6bd2fd6a43",
+    "daa1dc59f22a8601b489fc8a89da78bc35415291c62c185e711b8eef341e6e70",
+    "102907c1b95874e2893c6f7f06b45a3d52455d3bb17796e761df75aeda6aa065",
+    "baeede9b8e022bb98b63cb765ba5ca3e66e414bfd37702b349a04113bcfcaba6",
+    "b6f07be94b55144588b33ff39fb8a08004baa03eb7ff121e1847d715d0da6590",
+    "7d02c62697d783d85a51cd4f37a87987b8b3077df4ddd1227b254f59175ed1e4"
+  ],
+  pos: 1465
 }
 ```
 
@@ -342,8 +426,8 @@ All proofs verify passed!!!
 
 ## User Verifies Their Own Assets
 
-```Plaintext
-./main verify user
+```curl -sSL
+https://mempool.space/api/tx/15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521/merkle-proof
 ```
 
 If the verification is successful, it will output
