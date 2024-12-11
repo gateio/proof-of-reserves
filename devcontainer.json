@@ -1,0 +1,53 @@
+ devcontainer.json'u oluşturun
+
+Özellikler
+Dev Container Özellikleri, kurulum kodu ve geliştirme konteyner yapılandırmasının kendi kendine yeten birimleridir. Özellikler, çok çeşitli temel konteyner görüntülerinin üzerine kurulmak üzere tasarlanmıştır. Hangi temel görüntülerin desteklendiğini görmek için bir Özelliğin belgelerini kontrol ettiğinizden emin olun.
+
+Kullanım
+Bir Özelliğe başvurmak için, istenen Özelliği(leri) bir devcontainer.json dosyasına ekleyin. Kullanılabilir seçenekler için bir Özelliğin README dosyasına bakın veya varsayılan değeri kullanmak için seçenekleri boş bırakın.
+
+Örnek devcontainer.json
+{
+    "isim": "benim-projem-devcontainer",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu", // Herhangi bir genel, debian tabanlı görüntü.
+    "özellikler": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "sürüm": "1.18"
+        },
+        "ghcr.io/devcontainers/features/docker-in-docker:1": {
+            "sürüm": "en son",
+            "moby": doğru
+        }
+    }
+}
+---
+ .devcontainer/devcontainer.json | 20 ++++++++++++++++++++
+ 1 dosya değiştirildi, 20 ekleme(+)
+ 100644 .devcontainer/devcontainer.json modunu oluştur
+
+diff --git a/.devcontainer/devcontainer.json b/.devcontainer/devcontainer.json
+yeni dosya modu 100644
+dizin 00000000..2da8cac3
+--- /dev/null
++++ b/.devcontainer/devcontainer.json
+@@ -0,0 +1,20 @@
++Özellikler
++Dev Kapsayıcı Özellikleri, kurulum kodu ve geliştirme kapsayıcı yapılandırmasının kendi kendine yeten birimleridir. Özellikler, çok çeşitli temel kapsayıcı görüntüleri üzerine kurulmak üzere tasarlanmıştır. Hangi temel görüntülerin desteklendiğini görmek için bir Özelliğin belgelerini kontrol ettiğinizden emin olun.
++
++Kullanım
++Bir Özelliğe başvurmak için, istenen Özelliği(leri) devcontainer.json dosyasına ekleyin. Kullanılabilir seçenekler için bir Özelliğin README dosyasına bakın veya varsayılan değeri kullanmak için seçenekleri boş bırakın.
++
++Örnek devcontainer.json
++{
++ "name": "benim-projem-devcontainer",
++ "image": "mcr.microsoft.com/devcontainers/base:ubuntu", // Herhangi bir genel, debian tabanlı görüntü.
++ "özellikler": {
++ "ghcr.io/devcontainers/features/go:1": {
++ "sürüm": "1.18"
++ },
++ "ghcr.io/devcontainers/features/docker-in-docker:1": {
++ "sürüm": "en son",
++ "moby": doğru
++ }
++ }
++}
