@@ -1,0 +1,44 @@
+```go
+package circuit
+
+import (
+    "gate-zkmerkle-proof/utils"
+    "github.com/consensys/gnark/std/hash/poseidon"
+)
+
+const (
+    NumSlotsPerAsset = 3
+)
+
+// FlattenAssets converts a slice of UserAssetInfo into a slice of Variables.
+func FlattenAssets(api API, assets []UserAssetInfo) []Variable {
+    nEles := (len(assets)*2 + 2) / NumSlotsPerAsset
+    flattenAssets := make([]Variable, nEles*NumSlotsPerAsset)
+    for i := 0; i < len(assets); i++ {
+        flattenAssets[NumSlotsPerAsset*i] = assets[i].Equity
+        flattenAssets[NumSlotsPerAsset*i+1] = assets[i].Debt
+    }
+    for i := len(assets) * 2; i < len(flattenAssets); i++ {
+        flattenAssets[i] = 0
+    }
+    return flattenAssets
+}
+
+// CalculateTmpUserAssets computes the temporary user assets.
+func CalculateTmpUserAssets(api API, flattenAssets []Variable) []Variable {
+    nEles := len(flattenAssets) / NumSlotsPerAsset
+    tmpUserAssets := make([]Variable, nEles)
+    for i := 0; i < nEles; i++ {
+        tmpUserAssets[i] = api.Add(api.Mul(flattenAssets[NumSlotsPerAsset*i], utils.Uint64MaxValueFrSquare),
+            api.Mul(flattenAssets[NumSlotsPerAsset*i+1], utils.Uint64MaxValueFr), flattenAssets[NumSlotsPerAsset*i+2])
+    }
+    return tmpUserAssets
+}
+
+func ComputeUserAssetsCommitment(api API, assets []UserAssetInfo) Variable {
+    flattenAssets := FlattenAssets(api, assets)
+    tmpUserAssets := CalculateTmpUserAssets(api, flattenAssets)
+    commitment := poseidon.Poseidon(api, tmpUserAssets...)
+    return commitment
+}
+``` 
