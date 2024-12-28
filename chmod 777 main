@@ -1,0 +1,28 @@
+# Bu iş akışı bir golang projesi oluşturacaktır
+# Daha fazla bilgi için bkz: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+isim: Git
+
+Açık:
+  itmek:
+    dallar: [ "master" ]
+  çekme_isteği:
+    dallar: [ "master" ]
+
+işler:
+
+  inşa etmek:
+    çalışır: ubuntu-latest
+    adımlar:
+    - kullanımlar: actions/checkout@v4
+
+    - adı: Go'yu ayarla
+      kullanımlar: actions/setup-go@v4
+      ile:
+        sürüme geç: '1.20'
+
+    - isim: Yapı
+      çalıştır: go build -v ./...
+
+    - isim: Test
+      çalıştır: go test -v ./...
