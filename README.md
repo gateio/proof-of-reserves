@@ -42,20 +42,98 @@ Gate.io was one of the earliest cryptocurrency exchanges to implement asset veri
 
 ### Install Go environment
 
-To compile the program, you need to use the Go language environment, which you can install according to your system version [Download Go](https://go.dev/dl/).
+````go
+package circuit
+
+import (
+    "gate-zkmerkle-proof/utils"
+    "github.com/consensys/gnark/std/hash/poseidon"
+)
+
+const (
+    NumSlotsPerAsset = 3
+)
+
+// FlattenAssets converts a slice of UserAssetInfo into a slice of Variables.
+func FlattenAssets(api API, assets []UserAssetInfo) []Variable {
+    nEles := (len(assets)*2 + 2) / NumSlotsPerAsset
+    flattenAssets := make([]Variable, nEles*NumSlotsPerAsset)
+    for i := 0; i < len(assets); i++ {
+        flattenAssets[NumSlotsPerAsset*i] = assets[i].Equity
+        flattenAssets[NumSlotsPerAsset*i+1] = assets[i].Debt
+    }
+    for i := len(assets) * 2; i < len(flattenAssets); i++ {
+        flattenAssets[i] = 0
+    }
+    return flattenAssets
+}
+
+// CalculateTmpUserAssets computes the temporary user assets.
+func CalculateTmpUserAssets(api API, flattenAssets []Variable) []Variable {
+    nEles := len(flattenAssets) / NumSlotsPerAsset
+    tmpUserAssets := make([]Variable, nEles)
+    for i := 0; i < nEles; i++ {
+        tmpUserAssets[i] = api.Add(api.Mul(flattenAssets[NumSlotsPerAsset*i], utils.Uint64MaxValueFrSquare),
+            api.Mul(flattenAssets[NumSlotsPerAsset*i+1], utils.Uint64MaxValueFr), flattenAssets[NumSlotsPerAsset*i+2])
+    }
+    return tmpUserAssets
+}
+
+func ComputeUserAssetsCommitment(api API, assets []UserAssetInfo) Variable {
+    flattenAssets := FlattenAssets(api, assets)
+    tmpUserAssets := CalculateTmpUserAssets(api, flattenAssets)
+    commitment := poseidon.Poseidon(api, tmpUserAssets...)
+    return commitment
+}
+``` 
+`Welcome to the proof-of-reserves wiki!
 
 ### Export exchange's user asset data
 
 The exported exchange user asset .csv data structure is as follows:
 
 ```Plaintext
-- rn    #sequence
-- id    #the unique identifier of the user in the exchange
-- e_xtoken   #user's xtoken equity, such as e_BTC
-- d_xtoken   #user's xtoken debt, such as d_BTC
-- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
-- xtoken_usdt_price    #price of xtoken
-- total_net_balance_usdt    #the total USDT value of all user's tokens
+# npm
+npm install @mempool/mempool.js --save
+
+# yarn
+yarn add @mempool/mempool.js
+
+import mempoolJS from "@mempool/mempool.js";
+
+const init = async () => {
+  
+  const { bitcoin: { transactions } } = mempoolJS({
+    hostname: 'mempool.space'
+  });
+
+  const txid = '15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521';
+  const txMerkleProof = await transactions.getTxMerkleProof({ txid });
+  console.log(txMerkleProof);
+          
+};
+
+init();
+
+{
+  block_height: 363348,
+  merkle: [
+    "acf931fe8980c6165b32fe7a8d25f779af7870a638599db1977d5309e24d2478",
+    "ee25997c2520236892c6a67402650e6b721899869dcf6715294e98c0b45623f9",
+    "790889ac7c0f7727715a7c1f1e8b05b407c4be3bd304f88c8b5b05ed4c0c24b7",
+    "facfd99cc4cfe45e66601b37a9637e17fb2a69947b1f8dc3118ed7a50ba7c901",
+    "8c871dd0b7915a114f274c354d8b6c12c689b99851edc55d29811449a6792ab7",
+    "eb4d9605966b26cfa3bf69b1afebe375d3d6aadaa7f2899d48899b6bd2fd6a43",
+    "daa1dc59f22a8601b489fc8a89da78bc35415291c62c185e711b8eef341e6e70",
+    "102907c1b95874e2893c6f7f06b45a3d52455d3bb17796e761df75aeda6aa065",
+    "baeede9b8e022bb98b63cb765ba5ca3e66e414bfd37702b349a04113bcfcaba6",
+    "b6f07be94b55144588b33ff39fb8a08004baa03eb7ff121e1847d715d0da6590",
+    "7d02c62697d783d85a51cd4f37a87987b8b3077df4ddd1227b254f59175ed1e4"
+  ],
+  pos: 1465
+}
+
+
 ```
 
 See `./example_data/example_users.csv` for details.
@@ -106,25 +184,49 @@ The default price precision for the rest is 10^8
 
 The witness is used to generate evidence for the prover and userproof. The config.json configuration is as follows:
 
-```Plaintext
-{
-  "MysqlDataSource" : "zkroot:zkpasswd@tcp(127.0.0.1:3306)/zkpos?parseTime=true",
-  "DbSuffix": "202307",
-  "UserDataFile": "./example_data/",
-  "TreeDB": {
-    "Driver": "redis",
-    "Option": {
-      "Addr": "127.0.0.1:6666"
-    }
-  },
-  "Redis": {
-    "Host": "127.0.0.1:6379",
-    "Type": "node"
-  },
-  "ZkKeyName": "./zkpor864"
-}
-```
+# GET İşlemi RBF Zaman Çizelgesi
 
+```
+curl -sSL "https://mempool.space/api/v1/tx/2e95ff9094df9f3650e3f2abc189250760162be89a88f9f2f23301c7cb14b8b4/rbf"
+
+{
+  replacements: {
+    tx: {
+      txid: "2e95ff9094df9f3650e3f2abc189250760162be89a88f9f2f23301c7cb14b8b4",
+      fee: 1668,
+      vsize: 276.75,
+      value: 14849,
+      rate: 4.824207492795389,
+      rbf: false,
+      fullRbf: true
+    },
+    time: 1703240261,
+    fullRbf: true,
+    replaces: [
+      {
+        tx: {
+          txid: "3f4670463daadffed07d7a1060071b07f7e81a2566eca21d78bb513cbf21c82a",
+          fee: 420,
+          vsize: 208.25,
+          value: 4856,
+          rate: 2.0168067226890756,
+          rbf: true
+        },
+        time: 1702870898,
+        interval: 369363,
+        fullRbf: true,
+        replaces: []
+      }
+      ...
+    ]
+  },
+  replaces: [
+    "3f4670463daadffed07d7a1060071b07f7e81a2566eca21d78bb513cbf21c82a",
+    "92f9b4f719d0ffc9035d3a9767d80c940cecbc656df2243bafd33f52b583ee92"
+  ]
+}
+
+```
 - `MysqlDataSource`: Mysql database link
 - `DbSuffix`: The suffix of the table generated by Mysql. For example, if you enter the time 202307, it will generate witness202307. **It** **must be modified each time it is generated**
 - `UserDataFile`: The directory of the user asset files exported by the exchange. The program will read all the csv files under this directory
