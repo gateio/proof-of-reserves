@@ -1,0 +1,22 @@
+curl -sSL "https://mempool.space/api/v1/lightning/statistics/latest"
+
+
+{
+  "latest": {
+    "id": 163,
+    "added": "2022-08-30T00:00:00.000Z",
+    "channel_count": 81690,
+    "node_count": 15851,
+    "total_capacity": 460820222344,
+    "tor_nodes": 11455,
+    "clearnet_nodes": 2305,
+    "unannounced_nodes": 974,
+    "avg_capacity": 5641085,
+    "avg_fee_rate": 497,
+    "avg_base_fee_mtokens": 915,
+    "med_capacity": 1500000,
+    "med_fee_rate": 40,
+    "med_base_fee_mtokens": 100,
+    "clearnet_tor_nodes": 1117
+  }
+}
