@@ -1,3 +1,6 @@
+build:
+	go build -o main ./main.go
+
 build-arm64:
 	GOARCH=arm64 GOOS=darwin go build -o zkproof_darwin_arm64 ./main.go
 

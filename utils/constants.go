@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"math/big"
+
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 )
 
 const (
@@ -19,24 +20,55 @@ var (
 	Uint64MaxValueFr              = new(fr.Element).SetBigInt(Uint64MaxValueBigInt)
 	Uint64MaxValueFrSquare        = new(fr.Element).SetBigInt(Uint64MaxValueBigIntSquare)
 	AssetTypeForTwoDigits         = map[string]bool{
-		"bttc":  true,
-		"shib":  true,
-		"lunc":  true,
-		"xec":   true,
-		"win":   true,
-		"bidr":  true,
-		"spell": true,
-		"hot":   true,
-		"doge":  true,
-		"pepe":  true,
-		"floki": true,
-		"nft":   true,
-		"sats":  true,
-		"btt":   true,
-		"bonk":  true,
-		"rats":  true,
-		"axl":   true,
-		"1cat":  true,
-		"omi":   true,
+		"nft":      true,
+		"turbo":    true,
+		"cheems":   true,
+		"hippo":    true,
+		"spell":    true,
+		"sats":     true,
+		"qubic":    true,
+		"pepe":     true,
+		"lunc":     true,
+		"snek":     true,
+		"shib":     true,
+		"dog":      true,
+		"mog":      true,
+		"vinu":     true,
+		"lai":      true,
+		"btt":      true,
+		"1cat":     true,
+		"wen":      true,
+		"aidoge":   true,
+		"bidr":     true,
+		"elon":     true,
+		"wgrt":     true,
+		"say":      true,
+		"bonk":     true,
+		"pepper":   true,
+		"rats":     true,
+		"supra":    true,
+		"hot":      true,
+		"omi":      true,
+		"htx":      true,
+		"reef":     true,
+		"peipei":   true,
+		"wojak":    true,
+		"xec":      true,
+		"toshi":    true,
+		"win":      true,
+		"babydoge": true,
+		"why":      true,
+		"bome":     true,
+		"doge":     true,
+		"zbcn":     true,
+		"bttc":     true,
+		"raca":     true,
+		"apepe":    true,
+		"ladys":    true,
+		"vra":      true,
+		"axl":      true,
+		"floki":    true,
+		"bgsc":     true,
+		"atlas":    true,
 	}
 )
