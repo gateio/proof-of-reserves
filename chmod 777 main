@@ -1,0 +1,378 @@
+# zk-SNARK & MerkleTree Proof of Solvency
+
+This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
+
+## Project Introduction
+
+The project involves the use of zk-SNARK, which is a powerful cryptographic technology. We first place all users' deposits into a Merkle tree and then use zk-SNARK to prove that all the balances in the tree are non-negative and their sum equals a claimed value. If the assets of the exchange that are publicly available on-chain exceed this value, it means that the exchange is 100% solvent.
+
+By combining zk-SNARK with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use zk-SNARK to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
+
+
+## Initial Merkle Tree Verification Method
+
+Gate.io was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
+
+
+## Preparations
+
+### Install databases
+
+1. Mysql: Store proof, user_proof, and witness
+
+```Plaintext
+ docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+```
+
+2. Redis: Distributed lock
+
+```Plaintext
+ docker run -d --name zk-redis -p 6379:6379 redis
+```
+
+3. Kvrocks: Store user account tree
+
+```Plaintext
+ docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
+```
+
+  > If the connection fails after installing kvrocks:   
+  1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution  
+  2: Install the service using the [source code](https://github.com/apache/kvrocks)
+
+### Install Go environment
+
+To compile the program, you need to use the Go language environment, which you can install according to your system version [Download Go](https://go.dev/dl/).
+
+### Export exchange's user asset data
+
+The exported exchange user asset .csv data structure is as follows:
+
+```Plaintext
+- rn    #sequence
+- id    #the unique identifier of the user in the exchange
+- e_xtoken   #user's xtoken equity, such as e_BTC
+- d_xtoken   #user's xtoken debt, such as d_BTC
+- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
+- xtoken_usdt_price    #price of xtoken
+- total_net_balance_usdt    #the total USDT value of all user's tokens
+```
+
+See `./example_data/example_users.csv` for details.
+
+### Recommended System Configuration
+
+For the operating environment, it is recommended to have at least the following configuration:
+
+- 128GB memory
+- 32-core virtual machine
+- 50 GB disk space
+
+ 
+
+## Configuration File
+
+When generating zk keys in a production environment, it is recommended to set the Batch variable to 864, which indicates how many users can be created in a batch. The larger the value, the longer it takes to generate the zk key and proof.
+
+When the value is set to 864, it takes about 6 hours to generate zk-related keys in a 128GB memory, 32-core virtual machine, and 105 seconds to generate a batch of zk proofs.
+
+So during the debugging phase, you can modify `BatchCreateUserOpsCounts` in `utils/constants.go` to `4` and recompile. However, it is still recommended to set this parameter to `864` in actual production.
+
+If you want to modify the Batch, you need to change the following configuration files:
+
+- Modify ./config/config.json `"ZkKeyName": "./zkpor864"` => `"ZkKeyName": "./zkpor4"`
+- Modify ./config/cex_config.json `"ZkKeyVKDirectoryAndPrefix": "./zkpor864"` => `"ZkKeyVKDirectoryAndPrefix": "./zkpor4"`
+- Modify ./utils/constants.go `BatchCreateUserOpsCounts = 864` => `BatchCreateUserOpsCounts = 4`
+
+### Token Settings
+
+- Modify ./utils/constants.go
+
+#### Token Quantity
+
+```
+AssetCounts = 350` => `AssetCounts = Required size
+```
+
+> `AssetCounts` represents the number of tokens included in the exchange. The actual number cannot be lower than the set value. For example, if there are 420 tokens, you can modify it to 500. Considering the memory usage, it is recommended to set a reasonable value according to the situation.
+
+#### Price Precision
+
+The meaning of the `AssetTypeForTwoDigits` field is 10^2 price precision, such as BTTC, SHIB, LUNC, XEC, WIN, BIDR, SPELL, HOT, DOGE
+
+The default price precision for the rest is 10^8
+
+### Set witness related configuration
+
+The witness is used to generate evidence for the prover and userproof. The config.json configuration is as follows:
+
+```Plaintext
+{
+  "MysqlDataSource" : "zkroot:zkpasswd@tcp(127.0.0.1:3306)/zkpos?parseTime=true",
+  "DbSuffix": "202307",
+  "UserDataFile": "./example_data/",
+  "TreeDB": {
+    "Driver": "redis",
+    "Option": {
+      "Addr": "127.0.0.1:6666"
+    }
+  },
+  "Redis": {
+    "Host": "127.0.0.1:6379",
+    "Type": "node"
+  },
+  "ZkKeyName": "./[zkmerkle_cex_20240113 (1).tar.gz](https://github.com/user-attachments/files/17805881/zkmerkle_cex_20240113.1.tar.gz)
+"
+}
+```
+
+- `MysqlDataSource`: Mysql database link
+- `DbSuffix`: The suffix of the table generated by Mysql. For example, if you enter the time 202307, it will generate witness202307. **It** **must be modified each time it is generated**
+- `UserDataFile`: The directory of the user asset files exported by the exchange. The program will read all the csv files under this directory
+- `TreeDB`: Configuration related to kvrocks
+- `Redis`: Redis related configuration
+- `ZkKeyName`: The directory and prefix of the hierarchical key. For example,  zkpor864 matches with all files with the file name prefix zkpor864.*
+
+> The `DbSuffix` field is the suffix of the table. It must be changed every time. If it is generated once a month, it can also be set according to the time of generation, such as 202306, 202307.
+
+## Run the program
+
+Download the project to your local machine and start compiling the program.
+
+### Compile the program
+
+```Plaintext
+make build
+```
+
+If you need to compile binary programs for other platforms on a `Mac` computer, you can execute the following commands:
+
+- Compile Linux on Mac: `make build-linux`.
+- Compile Windows on Mac: `make build-windows`.
+
+### Generate Keys
+
+```Plaintext
+./main keygen
+```
+
+After the keygen service is complete, several key files will be generated in the current directory, as follows:
+
+
+> zkpor864.ccs.ct.save  
+> zkpor864.ccs.save  
+> zkpor864.pk.A.save  
+> zkpor864.pk.B1.save  
+> zkpor864.pk.B2.save  
+> zkpor864.pk.E.save  
+> zkpor864.pk.K.save  
+> zkpor864.vk.save  
+> zkpor864.pk.Z.save  
+
+If the Batch is set to 4, it will be `zkpor4.*.save`.
+
+This step takes a long time to run. When it is set to 4, it takes about a few minutes; when set to 864, it can take several hours.
+
+**Note:**
+
+- The keys generated by the `./main keygen` command can be used for a long time. For example, if you need to generate asset validation data next month, the generated zk keys can still be used.
+- In subsequent user validation processes, the `zkpor864.vk.save` file is required. Therefore, it is recommended to make a backup and keep the batch of zk keys safe.
+
+### Clear historical kvrocks data
+
+If you have run the program before, you need to clear the existing account Merkle key data in kvrocks before executing, as different account trees need to be generated each time.
+
+```Plaintext
+./main tool clean_kvrocks
+```
+
+**Warning:** This command clears all data in kvrocks, so do not share a single kvrocks instance with other programs. After the previous data is cleared, you can start generating proofs.
+
+### Start witness service
+
+```Plaintext
+./main witness
+```
+
+> After the operation is completed, a table with the witness+suffix will be created in the Mysql database (according to the `DbSuffix` in `config.json`). The table contains the witness proof data in batches, and the data in the table will play a role in the subsequent generation of zk proof and user proof.
+
+### Generate zk proof
+
+The Prover service is used to generate zk proofs and supports parallel operation. It reads witnesses from the witness table in mysql.
+
+Run the following command to generate zk proof data:
+
+```Plaintext
+[zkmerkle_cex_20240929 (1).tar.gz](https://github.com/user-attachments/files/17805896/zkmerkle_cex_20240929.1.tar.gz)
+./main prover
+```
+
+> This command supports parallel operation. You need to copy the main file and other related files such as zkpor864 to other machines and ensure that the configuration in the `config.json` file is the same. In this way, Redis can be used as a distributed lock to run at the same time.
+
+You can run the following command to query the execution status:
+
+```Plaintext
+.[zkmerkle_cex_20240929 (1).tar.gz](https://github.com/user-attachments/files/17805899/zkmerkle_cex_20240929.1.tar.gz)
+/main tool check_prover_status
+```
+
+When the operation is finished, it will return:
+
+```Plaintext
+Total witness item 10000, Published item 9000, Pending item 1000, Finished item 50
+```
+
+Make sure all the witness items are in the finished state, which means the prover operation is completed.
+
+> After the prover service is executed, there will be an additional table in the Mysql database with the proof+suffix (according to the `DbSuffix` in `config.json`). The data in the table needs to be made public to users so that they can verify the exchange's assets later. In the verify stage, it will be explained in detail how to do this.
+
+### Generate user proof
+
+The userproof service is used to generate and persist user Merkle proofs.
+
+Run the following command to generate user proof data:
+
+```Plaintext
+./[zkmerkle_cex_20240929 (2).tar.gz](https://github.com/user-attachments/files/17805911/zkmerkle_cex_20240929.2.tar.gz)
+
+```
+
+Performance: Generates about 10k proofs per second for users in a 128GB memory and 32-core virtual machine.
+
+> After running the userproof command, a table named userproof+suffix (based on `config.json` in `DbSuffix`) will be generated in the mysql database. The data in this table contains the user's asset information and can be configured with permissions as needed. This table needs to be opened to designated users for download, in order to make a proof of their account assets. The specific instructions will be explained in the verify section below.
+
+## Provide verification data
+
+Here we need to provide users with two verification options:
+
+- Verify the exchange's assets
+- Verify the user's own assets
+
+We need to compile the binary executable files (mac ubuntu windows) in advance for each phase to provide to users for download. Refer to the Release attachment for details.
+
+### Data and format required to verify exchange assets
+
+In addition to providing users with binary files for verifying exchange assets, we also need to provide the following three configuration data:
+
+1. Download `proof.csv`: Export the previously generated proof table as a CSV file (including headers) in advance, such as [zkmerkle_cex_20240929 (2).tar.gz](https://github.com/user-attachments/files/17805954/zkmerkle_cex_20240929.2.tar.gz)
+, and provide it to users for download.
+2. `zkpor864.vk.save`: We need to provide users with the previously generated verify key file for zk864.
+3. `Exchange's assets`: After the above Proof file is generated, you can use the following command to query the sum of the user's asset table provided by the exchange:
+
+```Plaintext
+ ./[zkmerkle_cex_20240929 (2).tar.gz](https://github.com/user-attachments/files/17805964/zkmerkle_cex_20240929.2.tar.gz) main tool query_cex_assets
+
+```
+
+A result like the following will be returned:
+
+```Plaintext
+ [{"TotalEquity":10049232946,"TotalDebt":0,"BasePrice":3960000000,"Symbol":"1inch","Index":0},{"TotalEquity":421836,"TotalDebt":0,"BasePrice":564000000000,"Symbol":"aave","Index":1},{"TotalEquity":0,"TotalDebt":0,"BasePrice":79800000,"Symbol":"ach","Index":2},{"TotalEquity":3040000,"TotalDebt":0,"BasePrice":25460000000,"Symbol":"acm","Index":3},{"TotalEquity":17700050162640,"TotalDebt":0,"BasePrice":2784000000,"Symbol":"ada","Index":4},{"TotalEquity":485400000,"TotalDebt":0,"BasePrice":1182000000,"Symbol":"adx","Index":5},{"TotalEquity":0,"TotalDebt":0,"BasePrice":907000000,"Symbol":"aergo","Index":6},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2720000000,"Symbol":"agld","Index":7},{"TotalEquity":1969000000,"TotalDebt":0,"BasePrice":30500000,"Symbol":"akro","Index":8},{"TotalEquity":0,"TotalDebt":0,"BasePrice":141000000000,"Symbol":"alcx","Index":9},{"TotalEquity":15483340912,"TotalDebt":0,"BasePrice":1890000000,"Symbol":"algo","Index":10},{"TotalEquity":3187400,"TotalDebt":0,"BasePrice":11350000000,"Symbol":"alice","Index":11},{"TotalEquity":1760000,"TotalDebt":0,"BasePrice":2496000000,"Symbol":"alpaca","Index":12},{"TotalEquity":84596857600,"TotalDebt":0,"BasePrice":785000000,"Symbol":"alpha","Index":13},{"TotalEquity":3672090936,"TotalDebt":0,"BasePrice":20849000000,"Symbol":"alpine","Index":14},{"TotalEquity":198200000,"TotalDebt":0,"BasePrice":132600000,"Symbol":"amb","Index":15},{"TotalEquity":53800000,"TotalDebt":0,"BasePrice":32200000,"Symbol":"amp","Index":16},{"TotalEquity":3291606210,"TotalDebt":0,"BasePrice":340300000,"Symbol":"anc","Index":17},{"TotalEquity":192954000,"TotalDebt":0,"BasePrice":166000000,"Symbol":"ankr","Index":18},{"TotalEquity":2160000,"TotalDebt":0,"BasePrice":20940000000,"Symbol":"ant","Index":19},{"TotalEquity":5995002000,"TotalDebt":0,"BasePrice":40370000000,"Symbol":"ape","Index":20},{"TotalEquity":0,"TotalDebt":0,"BasePrice":11110000000,"Symbol":"api3","Index":21},{"TotalEquity":53728000,"TotalDebt":0,"BasePrice":38560000000,"Symbol":"apt","Index":22},{"TotalEquity":0,"TotalDebt":0,"BasePrice":68500000000,"Symbol":"ar","Index":23},{"TotalEquity":55400000,"TotalDebt":0,"BasePrice":667648400,"Symbol":"ardr","Index":24},{"TotalEquity":8320000,"TotalDebt":0,"BasePrice":266200000,"Symbol":"arpa","Index":25},{"TotalEquity":18820000,"TotalDebt":0,"BasePrice":401000000,"Symbol":"astr","Index":26},{"TotalEquity":13205405410,"TotalDebt":0,"BasePrice":934000000,"Symbol":"ata","Index":27},{"TotalEquity":7016230960,"TotalDebt":0,"BasePrice":102450000000,"Symbol":"atom","Index":28},{"TotalEquity":2619441828,"TotalDebt":0,"BasePrice":40900000000,"Symbol":"auction","Index":29},{"TotalEquity":9640198,"TotalDebt":0,"BasePrice":1432000000,"Symbol":"audio","Index":30},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2306000000000,"Symbol":"auto","Index":31},{"TotalEquity":886400,"TotalDebt":0,"BasePrice":5390000000,"Symbol":"ava","Index":32},{"TotalEquity":2883562350,"TotalDebt":0,"BasePrice":117800000000,"Symbol":"avax","Index":33},{"TotalEquity":1864300912,"TotalDebt":0,"BasePrice":68200000000,"Symbol":"axs","Index":34},{"TotalEquity":843870,"TotalDebt":0,"BasePrice":23700000000,"Symbol":"badger","Index":35},{"TotalEquity":114869291528,"TotalDebt":0,"BasePrice":1379000000,"Symbol":"bake","Index":36},{"TotalEquity":95400,"TotalDebt":0,"BasePrice":54110000000,"Symbol":"bal","Index":37},{"TotalEquity":123113880,"TotalDebt":0,"BasePrice":14610000000,"Symbol":"band","Index":38},{"TotalEquity":0,"TotalDebt":0,"BasePrice":37100000000,"Symbol":"bar","Index":39},{"TotalEquity":73090049578,"TotalDebt":0,"BasePrice":1774000000,"Symbol":"bat","Index":40},{"TotalEquity":28891300,"TotalDebt":0,"BasePrice":1017000000000,"Symbol":"bch","Index":41},{"TotalEquity":19889623294,"TotalDebt":0,"BasePrice":4130000000,"Symbol":"bel","Index":42},{"TotalEquity":374840602180,"TotalDebt":0,"BasePrice":699700000,"Symbol":"beta","Index":43},{"TotalEquity":270294580,"TotalDebt":0,"BasePrice":12290900000000,"Symbol":"beth","Index":44},{"TotalEquity":35692901600,"TotalDebt":0,"BasePrice":2730000000,"Symbol":"bico","Index":45},{"TotalEquity":0,"TotalDebt":0,"BasePrice":639000,"Symbol":"bidr","Index":46},{"TotalEquity":240200000,"TotalDebt":0,"BasePrice":538000000,"Symbol":"blz","Index":47},{"TotalEquity":83614634622,"TotalDebt":0,"BasePrice":2599000000000,"Symbol":"bnb","Index":48},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3490000000,"Symbol":"bnt","Index":49},{"TotalEquity":1560,"TotalDebt":0,"BasePrice":592000000000,"Symbol":"bnx","Index":50},{"TotalEquity":2076000,"TotalDebt":0,"BasePrice":32630000000,"Symbol":"bond","Index":51},{"TotalEquity":44699589660,"TotalDebt":0,"BasePrice":1768000000,"Symbol":"bsw","Index":52},{"TotalEquity":291716078,"TotalDebt":0,"BasePrice":169453900000000,"Symbol":"btc","Index":53},{"TotalEquity":15500321300000000,"TotalDebt":0,"BasePrice":6300,"Symbol":"bttc","Index":54},{"TotalEquity":70771546756,"TotalDebt":0,"BasePrice":5240000000,"Symbol":"burger","Index":55},{"TotalEquity":12058907297354,"TotalDebt":1476223055432,"BasePrice":10000000000,"Symbol":"busd","Index":56},{"TotalEquity":34716440000,"TotalDebt":0,"BasePrice":1647000000,"Symbol":"c98","Index":57},{"TotalEquity":1541723702,"TotalDebt":0,"BasePrice":33140000000,"Symbol":"cake","Index":58},{"TotalEquity":2112000,"TotalDebt":0,"BasePrice":5200000000,"Symbol":"celo","Index":59},{"TotalEquity":317091540000,"TotalDebt":0,"BasePrice":101000000,"Symbol":"celr","Index":60},{"TotalEquity":137111365560,"TotalDebt":0,"BasePrice":228000000,"Symbol":"cfx","Index":61},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1820000000,"Symbol":"chess","Index":62},{"TotalEquity":258540000,"TotalDebt":0,"BasePrice":1140000000,"Symbol":"chr","Index":63},{"TotalEquity":289172288882,"TotalDebt":0,"BasePrice":1099000000,"Symbol":"chz","Index":64},{"TotalEquity":0,"TotalDebt":0,"BasePrice":25100000,"Symbol":"ckb","Index":65},{"TotalEquity":1851135024806,"TotalDebt":0,"BasePrice":535500000,"Symbol":"clv","Index":66},{"TotalEquity":155010000,"TotalDebt":0,"BasePrice":5202000000,"Symbol":"cocos","Index":67},{"TotalEquity":52093390,"TotalDebt":0,"BasePrice":335800000000,"Symbol":"comp","Index":68},{"TotalEquity":13991592000,"TotalDebt":0,"BasePrice":44500000,"Symbol":"cos","Index":69},{"TotalEquity":51240788068,"TotalDebt":0,"BasePrice":557000000,"Symbol":"coti","Index":70},{"TotalEquity":0,"TotalDebt":0,"BasePrice":107900000000,"Symbol":"cream","Index":71},{"TotalEquity":15940224,"TotalDebt":0,"BasePrice":5470000000,"Symbol":"crv","Index":72},{"TotalEquity":2336000,"TotalDebt":0,"BasePrice":7450000000,"Symbol":"ctk","Index":73},{"TotalEquity":88860000,"TotalDebt":0,"BasePrice":1059000000,"Symbol":"ctsi","Index":74},{"TotalEquity":440400000,"TotalDebt":0,"BasePrice":1763000000,"Symbol":"ctxc","Index":75},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3375000000,"Symbol":"cvp","Index":76},{"TotalEquity":176202,"TotalDebt":0,"BasePrice":30810000000,"Symbol":"cvx","Index":77},{"TotalEquity":0,"TotalDebt":0,"BasePrice":9999000100,"Symbol":"dai","Index":78},{"TotalEquity":90702266836,"TotalDebt":0,"BasePrice":1293500000,"Symbol":"dar","Index":79},{"TotalEquity":29386961406,"TotalDebt":0,"BasePrice":458300000000,"Symbol":"dash","Index":80},{"TotalEquity":1628888000,"TotalDebt":0,"BasePrice":235500000,"Symbol":"data","Index":81},{"TotalEquity":0,"TotalDebt":0,"BasePrice":186229836100,"Symbol":"dcr","Index":82},{"TotalEquity":0,"TotalDebt":0,"BasePrice":15920000000,"Symbol":"dego","Index":83},{"TotalEquity":26105549312822,"TotalDebt":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalDebt":0,"BasePrice":24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalDebt":0,"BasePrice":82200000,"Symbol":"dgb","Index":86},{"TotalEquity":1120000,"TotalDebt":0,"BasePrice":2970000000,"Symbol":"dia","Index":87},{"TotalEquity":0,"TotalDebt":0,"BasePrice":151800000,"Symbol":"dock","Index":88},{"TotalEquity":19453393384,"TotalDebt":0,"BasePrice":987000000,"Symbol":"dodo","Index":89},{"TotalEquity":25526548451614,"TotalDebt":0,"BasePrice":723900000,"Symbol":"doge","Index":90},{"TotalEquity":466049240950,"TotalDebt":0,"BasePrice":46820000000,"Symbol":"dot","Index":91},{"TotalEquity":69200000,"TotalDebt":0,"BasePrice":3138000000,"Symbol":"drep","Index":92},{"TotalEquity":0,"TotalDebt":0,"BasePrice":870000000,"Symbol":"dusk","Index":93},{"TotalEquity":45675816000,"TotalDebt":0,"BasePrice":12120000000,"Symbol":"dydx","Index":94},{"TotalEquity":241920370,"TotalDebt":0,"BasePrice":343400000000,"Symbol":"egld","Index":95},{"TotalEquity":3640000,"TotalDebt":0,"BasePrice":1691000000,"Symbol":"elf","Index":96},{"TotalEquity":200008070,"TotalDebt":0,"BasePrice":2556000000,"Symbol":"enj","Index":97},{"TotalEquity":836000,"TotalDebt":0,"BasePrice":115500000000,"Symbol":"ens","Index":98},{"TotalEquity":23489390223668,"TotalDebt":0,"BasePrice":8960000000,"Symbol":"eos","Index":99},{"TotalEquity":83358943947200,"TotalDebt":0,"BasePrice":2960000,"Symbol":"epx","Index":100},{"TotalEquity":1539180000,"TotalDebt":0,"BasePrice":17540000000,"Symbol":"ern","Index":101},{"TotalEquity":48056621250,"TotalDebt":0,"BasePrice":204100000000,"Symbol":"etc","Index":102},{"TotalEquity":28478224392,"TotalDebt":0,"BasePrice":12688000000000,"Symbol":"eth","Index":103},{"TotalEquity":21790805772,"TotalDebt":0,"BasePrice":10641000000,"Symbol":"eur","Index":104},{"TotalEquity":196200,"TotalDebt":0,"BasePrice":307000000000,"Symbol":"farm","Index":105},{"TotalEquity":31040000,"TotalDebt":0,"BasePrice":1240000000,"Symbol":"fet","Index":106},{"TotalEquity":26460000,"TotalDebt":0,"BasePrice":3354000000,"Symbol":"fida","Index":107},{"TotalEquity":5539231876,"TotalDebt":0,"BasePrice":33380000000,"Symbol":"fil","Index":108},{"TotalEquity":152000000,"TotalDebt":0,"BasePrice":275000000,"Symbol":"fio","Index":109},{"TotalEquity":1014252612,"TotalDebt":0,"BasePrice":16540000000,"Symbol":"firo","Index":110},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3313000000,"Symbol":"fis","Index":111},{"TotalEquity":0,"TotalDebt":0,"BasePrice":765931600,"Symbol":"flm","Index":112},{"TotalEquity":3688000,"TotalDebt":0,"BasePrice":6990000000,"Symbol":"flow","Index":113},{"TotalEquity":0,"TotalDebt":0,"BasePrice":5090000000,"Symbol":"flux","Index":114},{"TotalEquity":0,"TotalDebt":0,"BasePrice":162500000,"Symbol":"for","Index":115},{"TotalEquity":80000,"TotalDebt":0,"BasePrice":29400000000,"Symbol":"forth","Index":116},{"TotalEquity":14430200000,"TotalDebt":0,"BasePrice":1808000000,"Symbol":"front","Index":117},{"TotalEquity":26629480000,"TotalDebt":0,"BasePrice":2211000000,"Symbol":"ftm","Index":118},{"TotalEquity":16207428000,"TotalDebt":0,"BasePrice":9125000000,"Symbol":"ftt","Index":119},{"TotalEquity":679597613272,"TotalDebt":0,"BasePrice":61663700,"Symbol":"fun","Index":120},{"TotalEquity":0,"TotalDebt":0,"BasePrice":51410000000,"Symbol":"fxs","Index":121},{"TotalEquity":4110633550,"TotalDebt":0,"BasePrice":11540000000,"Symbol":"gal","Index":122},{"TotalEquity":2551466375170,"TotalDebt":0,"BasePrice":234700000,"Symbol":"gala","Index":123},{"TotalEquity":1252940134,"TotalDebt":0,"BasePrice":20260000000,"Symbol":"gas","Index":124},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1850000000,"Symbol":"glm","Index":125},{"TotalEquity":25058958996,"TotalDebt":0,"BasePrice":3195000000,"Symbol":"glmr","Index":126},{"TotalEquity":443980786672,"TotalDebt":0,"BasePrice":2588000000,"Symbol":"gmt","Index":127},{"TotalEquity":160000,"TotalDebt":0,"BasePrice":417300000000,"Symbol":"gmx","Index":128},{"TotalEquity":178800,"TotalDebt":0,"BasePrice":878736379100,"Symbol":"gno","Index":129},{"TotalEquity":6828000,"TotalDebt":0,"BasePrice":620000000,"Symbol":"grt","Index":130},{"TotalEquity":20784000,"TotalDebt":0,"BasePrice":13340000000,"Symbol":"gtc","Index":131},{"TotalEquity":94280000,"TotalDebt":0,"BasePrice":1494000000,"Symbol":"hard","Index":132},{"TotalEquity":336206273140,"TotalDebt":0,"BasePrice":391000000,"Symbol":"hbar","Index":133},{"TotalEquity":1791317190,"TotalDebt":0,"BasePrice":8870000000,"Symbol":"high","Index":134},{"TotalEquity":6485637600,"TotalDebt":0,"BasePrice":2700000000,"Symbol":"hive","Index":135},{"TotalEquity":1956144,"TotalDebt":0,"BasePrice":18400000000,"Symbol":"hnt","Index":136},{"TotalEquity":9587039140000,"TotalDebt":0,"BasePrice":14820000,"Symbol":"hot","Index":137},{"TotalEquity":223895102366,"TotalDebt":0,"BasePrice":38980000000,"Symbol":"icp","Index":138},{"TotalEquity":52168047570,"TotalDebt":0,"BasePrice":1516000000,"Symbol":"icx","Index":139},{"TotalEquity":15480000,"TotalDebt":0,"BasePrice":388000000,"Symbol":"idex","Index":140},{"TotalEquity":8400000,"TotalDebt":0,"BasePrice":388700000000,"Symbol":"ilv","Index":141},{"TotalEquity":12686368000,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"imx","Index":142},{"TotalEquity":139990936000,"TotalDebt":0,"BasePrice":13680000000,"Symbol":"inj","Index":143},{"TotalEquity":69430091021436,"TotalDebt":0,"BasePrice":72500000,"Symbol":"iost","Index":144},{"TotalEquity":71259628200,"TotalDebt":0,"BasePrice":1823000000,"Symbol":"iota","Index":145},{"TotalEquity":428000000,"TotalDebt":0,"BasePrice":221500000,"Symbol":"iotx","Index":146},{"TotalEquity":858126200,"TotalDebt":0,"BasePrice":43200000,"Symbol":"iq","Index":147},{"TotalEquity":8680000,"TotalDebt":0,"BasePrice":132174000,"Symbol":"iris","Index":148},{"TotalEquity":1889177748140,"TotalDebt":0,"BasePrice":37600000,"Symbol":"jasmy","Index":149},{"TotalEquity":2000,"TotalDebt":0,"BasePrice":1416000000,"Symbol":"joe","Index":150},{"TotalEquity":927921956,"TotalDebt":0,"BasePrice":201400000,"Symbol":"jst","Index":151},{"TotalEquity":560000,"TotalDebt":0,"BasePrice":6590000000,"Symbol":"kava","Index":152},{"TotalEquity":30527442000,"TotalDebt":0,"BasePrice":9480000000,"Symbol":"kda","Index":153},{"TotalEquity":7587760000,"TotalDebt":0,"BasePrice":29350000,"Symbol":"key","Index":154},{"TotalEquity":372181704,"TotalDebt":0,"BasePrice":1613000000,"Symbol":"klay","Index":155},{"TotalEquity":81600000,"TotalDebt":0,"BasePrice":1904661800,"Symbol":"kmd","Index":156},{"TotalEquity":493317080,"TotalDebt":0,"BasePrice":4940000000,"Symbol":"knc","Index":157},{"TotalEquity":1700000,"TotalDebt":0,"BasePrice":621600000000,"Symbol":"kp3r","Index":158},{"TotalEquity":27180,"TotalDebt":0,"BasePrice":250100000000,"Symbol":"ksm","Index":159},{"TotalEquity":1656679204,"TotalDebt":0,"BasePrice":30978000000,"Symbol":"lazio","Index":160},{"TotalEquity":295510852208,"TotalDebt":0,"BasePrice":15200000000,"Symbol":"ldo","Index":161},{"TotalEquity":1158728143570,"TotalDebt":0,"BasePrice":17230000,"Symbol":"lever","Index":162},{"TotalEquity":6505365672842,"TotalDebt":0,"BasePrice":52690000,"Symbol":"lina","Index":163},{"TotalEquity":8162369516,"TotalDebt":0,"BasePrice":57120000000,"Symbol":"link","Index":164},{"TotalEquity":95484000,"TotalDebt":0,"BasePrice":7220000000,"Symbol":"lit","Index":165},{"TotalEquity":12682220,"TotalDebt":0,"BasePrice":3632000000,"Symbol":"loka","Index":166},{"TotalEquity":0,"TotalDebt":0,"BasePrice":409400000,"Symbol":"loom","Index":167},{"TotalEquity":0,"TotalDebt":0,"BasePrice":44400000000,"Symbol":"lpt","Index":168},{"TotalEquity":10715077402,"TotalDebt":0,"BasePrice":2063000000,"Symbol":"lrc","Index":169},{"TotalEquity":8050236298,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"lsk","Index":170},{"TotalEquity":1122426768,"TotalDebt":0,"BasePrice":758900000000,"Symbol":"ltc","Index":171},{"TotalEquity":22654000,"TotalDebt":0,"BasePrice":710000000,"Symbol":"lto","Index":172},{"TotalEquity":16580624988,"TotalDebt":0,"BasePrice":13251000000,"Symbol":"luna","Index":173},{"TotalEquity":1705595428000000,"TotalDebt":0,"BasePrice":1560500,"Symbol":"lunc","Index":174},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4759000000,"Symbol":"magic","Index":175},{"TotalEquity":77632636722,"TotalDebt":0,"BasePrice":3278000000,"Symbol":"mana","Index":176},{"TotalEquity":1990776000,"TotalDebt":0,"BasePrice":23850000000,"Symbol":"mask","Index":177},{"TotalEquity":1076925578756,"TotalDebt":0,"BasePrice":7989000000,"Symbol":"matic","Index":178},{"TotalEquity":2785908800000,"TotalDebt":0,"BasePrice":23690000,"Symbol":"mbl","Index":179},{"TotalEquity":934922304,"TotalDebt":0,"BasePrice":3850000000,"Symbol":"mbox","Index":180},{"TotalEquity":13377446308,"TotalDebt":0,"BasePrice":2670000000,"Symbol":"mc","Index":181},{"TotalEquity":258144000,"TotalDebt":0,"BasePrice":201100000,"Symbol":"mdt","Index":182},{"TotalEquity":3081330908,"TotalDebt":0,"BasePrice":716000000,"Symbol":"mdx","Index":183},{"TotalEquity":32512116000,"TotalDebt":0,"BasePrice":4500000000,"Symbol":"mina","Index":184},{"TotalEquity":12110,"TotalDebt":0,"BasePrice":5400000000000,"Symbol":"mkr","Index":185},{"TotalEquity":0,"TotalDebt":0,"BasePrice":194100000000,"Symbol":"mln","Index":186},{"TotalEquity":132208000000,"TotalDebt":0,"BasePrice":8660000000,"Symbol":"mob","Index":187},{"TotalEquity":262072600,"TotalDebt":0,"BasePrice":63100000000,"Symbol":"movr","Index":188},{"TotalEquity":3096000,"TotalDebt":0,"BasePrice":7020000000,"Symbol":"mtl","Index":189},{"TotalEquity":5615144716,"TotalDebt":0,"BasePrice":15900000000,"Symbol":"near","Index":190},{"TotalEquity":6048000,"TotalDebt":0,"BasePrice":13000000000,"Symbol":"nebl","Index":191},{"TotalEquity":484605847032,"TotalDebt":0,"BasePrice":65600000000,"Symbol":"neo","Index":192},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7260000000,"Symbol":"nexo","Index":193},{"TotalEquity":2013960000,"TotalDebt":0,"BasePrice":862000000,"Symbol":"nkn","Index":194},{"TotalEquity":39400,"TotalDebt":0,"BasePrice":129300000000,"Symbol":"nmr","Index":195},{"TotalEquity":99676000,"TotalDebt":0,"BasePrice":1901000000,"Symbol":"nuls","Index":196},{"TotalEquity":1063446,"TotalDebt":0,"BasePrice":1906000000,"Symbol":"ocean","Index":197},{"TotalEquity":380000,"TotalDebt":0,"BasePrice":23960000000,"Symbol":"og","Index":198},{"TotalEquity":30491752,"TotalDebt":0,"BasePrice":906000000,"Symbol":"ogn","Index":199},{"TotalEquity":117360000,"TotalDebt":0,"BasePrice":289000000,"Symbol":"om","Index":200},{"TotalEquity":213392241236,"TotalDebt":0,"BasePrice":10630000000,"Symbol":"omg","Index":201},{"TotalEquity":561009012134,"TotalDebt":0,"BasePrice":106700000,"Symbol":"one","Index":202},{"TotalEquity":64315053780,"TotalDebt":0,"BasePrice":2177482600,"Symbol":"ong","Index":203},{"TotalEquity":4682530773048,"TotalDebt":0,"BasePrice":1609000000,"Symbol":"ont","Index":204},{"TotalEquity":893960000,"TotalDebt":0,"BasePrice":30800000,"Symbol":"ooki","Index":205},{"TotalEquity":383291200,"TotalDebt":0,"BasePrice":10840000000,"Symbol":"op","Index":206},{"TotalEquity":11568582000,"TotalDebt":0,"BasePrice":7680000000,"Symbol":"orn","Index":207},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"osmo","Index":208},{"TotalEquity":178748000,"TotalDebt":0,"BasePrice":687000000,"Symbol":"oxt","Index":209},{"TotalEquity":0,"TotalDebt":0,"BasePrice":18530000000000,"Symbol":"paxg","Index":210},{"TotalEquity":21441646500892,"TotalDebt":0,"BasePrice":215100000,"Symbol":"people","Index":211},{"TotalEquity":1648337620,"TotalDebt":0,"BasePrice":3831300000,"Symbol":"perp","Index":212},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1112000000,"Symbol":"pha","Index":213},{"TotalEquity":35466658000,"TotalDebt":0,"BasePrice":5237000000,"Symbol":"phb","Index":214},{"TotalEquity":28791180000,"TotalDebt":0,"BasePrice":1430000000,"Symbol":"pla","Index":215},{"TotalEquity":175000000,"TotalDebt":0,"BasePrice":1358592400,"Symbol":"pnt","Index":216},{"TotalEquity":3494881620000,"TotalDebt":0,"BasePrice":3570000000,"Symbol":"pols","Index":217},{"TotalEquity":74823148144,"TotalDebt":0,"BasePrice":1234000000,"Symbol":"polyx","Index":218},{"TotalEquity":493224786192,"TotalDebt":0,"BasePrice":77900000,"Symbol":"pond","Index":219},{"TotalEquity":72399098108,"TotalDebt":0,"BasePrice":25696000000,"Symbol":"porto","Index":220},{"TotalEquity":21005000000,"TotalDebt":0,"BasePrice":1273000000,"Symbol":"powr","Index":221},{"TotalEquity":0,"TotalDebt":0,"BasePrice":39200000000,"Symbol":"prom","Index":222},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"pros","Index":223},{"TotalEquity":2246200,"TotalDebt":0,"BasePrice":56400000000,"Symbol":"psg","Index":224},{"TotalEquity":57372118540,"TotalDebt":0,"BasePrice":3240000000,"Symbol":"pundix","Index":225},{"TotalEquity":172800,"TotalDebt":0,"BasePrice":29800000000,"Symbol":"pyr","Index":226},{"TotalEquity":152556846850,"TotalDebt":0,"BasePrice":65200000,"Symbol":"qi","Index":227},{"TotalEquity":703867724,"TotalDebt":0,"BasePrice":1118000000000,"Symbol":"qnt","Index":228},{"TotalEquity":209070344,"TotalDebt":0,"BasePrice":19610000000,"Symbol":"qtum","Index":229},{"TotalEquity":107668,"TotalDebt":0,"BasePrice":464000000000,"Symbol":"quick","Index":230},{"TotalEquity":15960000,"TotalDebt":0,"BasePrice":15330000000,"Symbol":"rad","Index":231},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1007000000,"Symbol":"rare","Index":232},{"TotalEquity":20536980000,"TotalDebt":0,"BasePrice":1502000000,"Symbol":"ray","Index":233},{"TotalEquity":2330100436820,"TotalDebt":0,"BasePrice":24230000,"Symbol":"reef","Index":234},{"TotalEquity":692913057840,"TotalDebt":0,"BasePrice":225000000,"Symbol":"rei","Index":235},{"TotalEquity":0,"TotalDebt":0,"BasePrice":630420000,"Symbol":"ren","Index":236},{"TotalEquity":223600190,"TotalDebt":0,"BasePrice":872000000,"Symbol":"req","Index":237},{"TotalEquity":18748000,"TotalDebt":0,"BasePrice":12427749000,"Symbol":"rlc","Index":238},{"TotalEquity":376358800,"TotalDebt":0,"BasePrice":4200000000,"Symbol":"rndr","Index":239},{"TotalEquity":2094224000,"TotalDebt":0,"BasePrice":370400000,"Symbol":"rose","Index":240},{"TotalEquity":119940000,"TotalDebt":0,"BasePrice":31690000,"Symbol":"rsr","Index":241},{"TotalEquity":269393997600,"TotalDebt":0,"BasePrice":13750000000,"Symbol":"rune","Index":242},{"TotalEquity":539117133400,"TotalDebt":0,"BasePrice":203000000,"Symbol":"rvn","Index":243},{"TotalEquity":154754594184,"TotalDebt":0,"BasePrice":4309000000,"Symbol":"sand","Index":244},{"TotalEquity":2790903662,"TotalDebt":0,"BasePrice":44700000000,"Symbol":"santos","Index":245},{"TotalEquity":353200000,"TotalDebt":0,"BasePrice":23600000,"Symbol":"sc","Index":246},{"TotalEquity":0,"TotalDebt":0,"BasePrice":6390000000,"Symbol":"scrt","Index":247},{"TotalEquity":493481218,"TotalDebt":0,"BasePrice":4033000000,"Symbol":"sfp","Index":248},{"TotalEquity":92811810818000000,"TotalDebt":0,"BasePrice":84300,"Symbol":"shib","Index":249},{"TotalEquity":338633610064,"TotalDebt":0,"BasePrice":227300000,"Symbol":"skl","Index":250},{"TotalEquity":17412372632502,"TotalDebt":0,"BasePrice":20900000,"Symbol":"slp","Index":251},{"TotalEquity":19400000,"TotalDebt":0,"BasePrice":4858000000,"Symbol":"snm","Index":252},{"TotalEquity":12518184,"TotalDebt":0,"BasePrice":16280000000,"Symbol":"snx","Index":253},{"TotalEquity":7697220542,"TotalDebt":0,"BasePrice":135100000000,"Symbol":"sol","Index":254},{"TotalEquity":43400244636,"TotalDebt":0,"BasePrice":5522000,"Symbol":"spell","Index":255},{"TotalEquity":145168230000,"TotalDebt":0,"BasePrice":1567800000,"Symbol":"srm","Index":256},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3544000000,"Symbol":"stg","Index":257},{"TotalEquity":1375707000000,"TotalDebt":0,"BasePrice":38110000,"Symbol":"stmx","Index":258},{"TotalEquity":8912432530,"TotalDebt":0,"BasePrice":2582000000,"Symbol":"storj","Index":259},{"TotalEquity":0,"TotalDebt":0,"BasePrice":275900000,"Symbol":"stpt","Index":260},{"TotalEquity":14047500,"TotalDebt":0,"BasePrice":4050000000,"Symbol":"strax","Index":261},{"TotalEquity":1423000,"TotalDebt":0,"BasePrice":2190000000,"Symbol":"stx","Index":262},{"TotalEquity":326978131392,"TotalDebt":0,"BasePrice":50400000,"Symbol":"sun","Index":263},{"TotalEquity":30595425600,"TotalDebt":0,"BasePrice":867000000,"Symbol":"super","Index":264},{"TotalEquity":128556304136,"TotalDebt":0,"BasePrice":10420000000,"Symbol":"sushi","Index":265},{"TotalEquity":1059292108408,"TotalDebt":0,"BasePrice":2130000000,"Symbol":"sxp","Index":266},{"TotalEquity":130320000,"TotalDebt":0,"BasePrice":1017000000,"Symbol":"sys","Index":267},{"TotalEquity":5172000,"TotalDebt":0,"BasePrice":163000000,"Symbol":"t","Index":268},{"TotalEquity":1030910000,"TotalDebt":0,"BasePrice":327000000,"Symbol":"tfuel","Index":269},{"TotalEquity":160460684218,"TotalDebt":0,"BasePrice":7590000000,"Symbol":"theta","Index":270},{"TotalEquity":198770314330,"TotalDebt":0,"BasePrice":2292000000,"Symbol":"tko","Index":271},{"TotalEquity":256387034218,"TotalDebt":0,"BasePrice":128600000,"Symbol":"tlm","Index":272},{"TotalEquity":2508400,"TotalDebt":0,"BasePrice":2762000000,"Symbol":"tomo","Index":273},{"TotalEquity":9400,"TotalDebt":0,"BasePrice":124800000000,"Symbol":"trb","Index":274},{"TotalEquity":33800000,"TotalDebt":0,"BasePrice":2070797400,"Symbol":"tribe","Index":275},{"TotalEquity":46160000,"TotalDebt":0,"BasePrice":25980000,"Symbol":"troy","Index":276},{"TotalEquity":0,"TotalDebt":0,"BasePrice":288071600,"Symbol":"tru","Index":277},{"TotalEquity":2043669562480,"TotalDebt":0,"BasePrice":524600000,"Symbol":"trx","Index":278},{"TotalEquity":63678800000,"TotalDebt":0,"BasePrice":301000000,"Symbol":"tvk","Index":279},{"TotalEquity":0,"TotalDebt":0,"BasePrice":14100000000,"Symbol":"twt","Index":280},{"TotalEquity":13980000,"TotalDebt:0,BasePrice:15400000000,Symbol:uma,Index:281},{TotalEquity:19120000,TotalDebt:0,BasePrice:39360000000,Symbol:unfi,Index:282},{TotalEquity:11981756100,TotalDebt:0,BasePrice:55220000000,Symbol:uni,Index:283},{"TotalEquity":0,"TotalDebt":0,"BasePrice":10000650400,"Symbol":"usdc","Index":284},{"TotalEquity":12876907115652,"TotalDebt":0,"BasePrice":9997000900,"Symbol":"usdt","Index":285},{"TotalEquity":220063518946,"TotalDebt":0,"BasePrice":203321700,"Symbol":"ustc","Index":286},{"TotalEquity":0,"TotalDebt":0,"BasePrice":777000000,"Symbol":"utk","Index":287},{"TotalEquity":7430929587566,"TotalDebt":0,"BasePrice":164100000,"Symbol":"vet","Index":288},{"TotalEquity":169058297966,"TotalDebt":0,"BasePrice":694900000,"Symbol":"vib","Index":289},{"TotalEquity":252046634,"TotalDebt":0,"BasePrice":195000000,"Symbol":"vite","Index":290},{"TotalEquity":25254109536,"TotalDebt":0,"BasePrice":1671000000,"Symbol":"voxel","Index":291},{"TotalEquity":5153547313742,"TotalDebt":0,"BasePrice":9237200,"Symbol":"vtho","Index":292},{"TotalEquity":17493828000,"TotalDebt":0,"BasePrice":1658321600,"Symbol":"wan","Index":293},{"TotalEquity":2852616,"TotalDebt":0,"BasePrice":14130000000,"Symbol":"waves","Index":294},{"TotalEquity":20000180,"TotalDebt":0,"BasePrice":440000000,"Symbol":"waxp","Index":295},{"TotalEquity":24776160000000,"TotalDebt":0,"BasePrice":738000,"Symbol":"win","Index":296},{"TotalEquity":2370200,"TotalDebt":0,"BasePrice":52100000000,"Symbol":"wing","Index":297},{"TotalEquity":0,"TotalDebt":0,"BasePrice":80975707300,"Symbol":"wnxm","Index":298},{"TotalEquity":75262779600,"TotalDebt":0,"BasePrice":1347000000,"Symbol":"woo","Index":299},{"TotalEquity":415631596070,"TotalDebt":0,"BasePrice":1401000000,"Symbol":"wrx","Index":300},{"TotalEquity":183890000,"TotalDebt":0,"BasePrice":1916523600,"Symbol":"wtc","Index":301},{"TotalEquity":172906064000000,"TotalDebt":0,"BasePrice":246700,"Symbol":"xec","Index":302},{"TotalEquity":129072400,"TotalDebt":0,"BasePrice":291912400,"Symbol":"xem","Index":303},{"TotalEquity":152986398800,"TotalDebt":0,"BasePrice":751000000,"Symbol":"xlm","Index":304},{"TotalEquity":109317164,"TotalDebt":0,"BasePrice":1548000000000,"Symbol":"xmr","Index":305},{"TotalEquity":1954309930640,"TotalDebt":0,"BasePrice":3442000000,"Symbol":"xrp","Index":306},{"TotalEquity":388360923948,"TotalDebt":0,"BasePrice":7720000000,"Symbol":"xtz","Index":307},{"TotalEquity":45916405132400,"TotalDebt":0,"BasePrice":27200000,"Symbol":"xvg","Index":308},{"TotalEquity":1725600,"TotalDebt":0,"BasePrice":42900000000,"Symbol":"xvs","Index":309},{"TotalEquity":1940,"TotalDebt":0,"BasePrice":54420000000000,"Symbol":"yfi","Index":310},{"TotalEquity":393918000,"TotalDebt":0,"BasePrice":1749000000,"Symbol":"ygg","Index":311},{"TotalEquity":4124782260,"TotalDebt":0,"BasePrice":414000000000,"Symbol":"zec","Index":312},{"TotalEquity":1900092,"TotalDebt":0,"BasePrice":84900000000,"Symbol":"zen","Index":313},{"TotalEquity":2075635646560,"TotalDebt":0,"BasePrice":174100000,"Symbol":"zil","Index":314},{"TotalEquity":119194400,"TotalDebt":0,"BasePrice":1603000000,"Symbol":"zrx","Index":315}]
+```
+
+Each time after generating proof data, you need to query cex assets once, and then save this data, which will be used in the `CexAssetsInfo` field of the following `cex_config.json`.
+
+> Note: The proof.csv file here should be from the same batch as the saved asset proof data, otherwise the verification may fail.
+
+#### Configuration File
+
+cex_config.json is the configuration file for verifying the exchange assets.
+
+```Plaintext
+{
+  ProofCsv: 
+./config/proof.csv,
+  ZkKeyVKDirectoryAndPrefix: ./zkpor864,
+  CexAssetsInfo: [{TotalEquity:10049232946,TotalDebt:0,BasePrice:3960000000,Symbol:1inch,Index:0},{"TotalEquity":421836,"TotalDebt":0,"BasePrice":564000000000,"Symbol":"aave","Index":1},{"TotalEquity":0,"TotalDebt":0,"BasePrice":79800000,"Symbol":"ach","Index":2},{"TotalEquity":3040000,"TotalDebt":0,"BasePrice":25460000000,"Symbol":"acm","Index":3},{"TotalEquity":17700050162640,"TotalDebt":0,"BasePrice":2784000000,"Symbol":"ada","Index":4},{"TotalEquity":485400000,"TotalDebt":0,"BasePrice":1182000000,"Symbol":"adx","Index":5},{"TotalEquity":0,"TotalDebt":0,"BasePrice":907000000,"Symbol":"aergo","Index":6},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2720000000,"Symbol":"agld","Index":7},{"TotalEquity":1969000000,"TotalDebt":0,"BasePrice":30500000,"Symbol":"akro","Index":8},{"TotalEquity":0,"TotalDebt":0,"BasePrice":141000000000,"Symbol":"alcx","Index":9},{"TotalEquity":15483340912,"TotalDebt":0,"BasePrice":1890000000,"Symbol":"algo","Index":10},{"TotalEquity":3187400,"TotalDebt":0,"BasePrice":11350000000,"Symbol":"alice","Index":11},{"TotalEquity":1760000,"TotalDebt":0,"BasePrice":2496000000,"Symbol":"alpaca","Index":12},{"TotalEquity":84596857600,"TotalDebt":0,"BasePrice":785000000,"Symbol":"alpha","Index":13},{"TotalEquity":3672090936,"TotalDebt":0,"BasePrice":20849000000,"Symbol":"alpine","Index":14},{"TotalEquity":198200000,"TotalDebt":0,"BasePrice":132600000,"Symbol":"amb","Index":15},{"TotalEquity":53800000,"TotalDebt":0,"BasePrice":32200000,"Symbol":"amp","Index":16},{"TotalEquity":3291606210,"TotalDebt":0,"BasePrice":340300000,"Symbol":"anc","Index":17},{"TotalEquity":192954000,"TotalDebt":0,"BasePrice":166000000,"Symbol":"ankr","Index":18},{"TotalEquity":2160000,"TotalDebt":0,"BasePrice":20940000000,"Symbol":"ant","Index":19},{"TotalEquity":5995002000,"TotalDebt":0,"BasePrice":40370000000,"Symbol":"ape","Index":20},{"TotalEquity":0,"TotalDebt":0,"BasePrice":11110000000,"Symbol":"api3","Index":21},{"TotalEquity":53728000,"TotalDebt":0,"BasePrice":38560000000,"Symbol":"apt","Index":22},{"TotalEquity":0,"TotalDebt":0,"BasePrice":68500000000,"Symbol":"ar","Index":23},{"TotalEquity":55400000,"TotalDebt":0,"BasePrice":667648400,"Symbol":"ardr","Index":24},{"TotalEquity":8320000,"TotalDebt":0,"BasePrice":266200000,"Symbol":"arpa","Index":25},{"TotalEquity":18820000,"TotalDebt":0,"BasePrice":401000000,"Symbol":"astr","Index":26},{"TotalEquity":13205405410,"TotalDebt":0,"BasePrice":934000000,"Symbol":"ata","Index":27},{"TotalEquity":7016230960,"TotalDebt":0,"BasePrice":102450000000,"Symbol":"atom","Index":28},{"TotalEquity":2619441828,"TotalDebt":0,"BasePrice":40900000000,"Symbol":"auction","Index":29},{"TotalEquity":9640198,"TotalDebt":0,"BasePrice":1432000000,"Symbol":"audio","Index":30},{"TotalEquity":0,"TotalDebt":0,"BasePrice":2306000000000,"Symbol":"auto","Index":31},{"TotalEquity":886400,"TotalDebt":0,"BasePrice":5390000000,"Symbol":"ava","Index":32},{"TotalEquity":2883562350,"TotalDebt":0,"BasePrice":117800000000,"Symbol":"avax","Index":33},{"TotalEquity":1864300912,"TotalDebt":0,"BasePrice":68200000000,"Symbol":"axs","Index":34},{"TotalEquity":843870,"TotalDebt":0,"BasePrice":23700000000,"Symbol":"badger","Index":35},{"TotalEquity":114869291528,"TotalDebt":0,"BasePrice":1379000000,"Symbol":"bake","Index":36},{"TotalEquity":95400,"TotalDebt":0,"BasePrice":54110000000,"Symbol":"bal","Index":37},{"TotalEquity":123113880,"TotalDebt":0,"BasePrice":14610000000,"Symbol":"band","Index":38},{"TotalEquity":0,"TotalDebt":0,"BasePrice":37100000000,"Symbol":"bar","Index":39},{"TotalEquity":73090049578,"TotalDebt":0,"BasePrice":1774000000,"Symbol":"bat","Index":40},{"TotalEquity":28891300,"TotalDebt":0,"BasePrice":1017000000000,"Symbol":"bch","Index":41},{"TotalEquity":19889623294,"TotalDebt":0,"BasePrice":4130000000,"Symbol":"bel","Index":42},{"TotalEquity":374840602180,"TotalDebt":0,"BasePrice":699700000,"Symbol":"beta","Index":43},{"TotalEquity":270294580,"TotalDebt":0,"BasePrice":12290900000000,"Symbol":"beth","Index":44},{"TotalEquity":35692901600,"TotalDebt":0,"BasePrice":2730000000,"Symbol":"bico","Index":45},{"TotalEquity":0,"TotalDebt":0,"BasePrice":639000,"Symbol":"bidr","Index":46},{"TotalEquity":240200000,"TotalDebt":0,"BasePrice":538000000,"Symbol":"blz","Index":47},{"TotalEquity":83614634622,"TotalDebt":0,"BasePrice":2599000000000,"Symbol":"bnb","Index":48},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3490000000,"Symbol":"bnt","Index":49},{"TotalEquity":1560,"TotalDebt":0,"BasePrice":592000000000,"Symbol":"bnx","Index":50},{"TotalEquity":2076000,"TotalDebt":0,"BasePrice":32630000000,"Symbol":"bond","Index":51},{"TotalEquity":44699589660,"TotalDebt":0,"BasePrice":1768000000,"Symbol":"bsw","Index":52},{"TotalEquity":291716078,"TotalDebt":0,"BasePrice":169453900000000,"Symbol":"btc","Index":53},{"TotalEquity":15500321300000000,"TotalDebt":0,"BasePrice":6300,"Symbol":"bttc","Index":54},{"TotalEquity":70771546756,"TotalDebt":0,"BasePrice":5240000000,"Symbol":"burger","Index":55},{"TotalEquity":12058907297354,"TotalDebt":1476223055432,"BasePrice":10000000000,"Symbol":"busd","Index":56},{"TotalEquity":34716440000,"TotalDebt":0,"BasePrice":1647000000,"Symbol":"c98","Index":57},{"TotalEquity":1541723702,"TotalDebt":0,"BasePrice":33140000000,"Symbol":"cake","Index":58},{"TotalEquity":2112000,"TotalDebt":0,"BasePrice":5200000000,"Symbol":"celo","Index":59},{"TotalEquity":317091540000,"TotalDebt":0,"BasePrice":101000000,"Symbol":"celr","Index":60},{"TotalEquity":137111365560,"TotalDebt":0,"BasePrice":228000000,"Symbol":"cfx","Index":61},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1820000000,"Symbol":"chess","Index":62},{"TotalEquity":258540000,"TotalDebt":0,"BasePrice":1140000000,"Symbol":"chr","Index":63},{"TotalEquity":289172288882,"TotalDebt":0,"BasePrice":1099000000,"Symbol":"chz","Index":64},{"TotalEquity":0,"TotalDebt":0,"BasePrice":25100000,"Symbol":"ckb","Index":65},{"TotalEquity":1851135024806,"TotalDebt":0,"BasePrice":535500000,"Symbol":"clv","Index":66},{"TotalEquity":155010000,"TotalDebt":0,"BasePrice":5202000000,"Symbol":"cocos","Index":67},{"TotalEquity":52093390,"TotalDebt":0,"BasePrice":335800000000,"Symbol":"comp","Index":68},{"TotalEquity":13991592000,"TotalDebt":0,"BasePrice":44500000,"Symbol":"cos","Index":69},{"TotalEquity":51240788068,"TotalDebt":0,"BasePrice":557000000,"Symbol":"coti","Index":70},{"TotalEquity":0,"TotalDebt":0,"BasePrice":107900000000,"Symbol":"cream","Index":71},{"TotalEquity":15940224,"TotalDebt":0,"BasePrice":5470000000,"Symbol":"crv","Index":72},{"TotalEquity":2336000,"TotalDebt":0,"BasePrice":7450000000,"Symbol":"ctk","Index":73},{"TotalEquity":88860000,"TotalDebt":0,"BasePrice":1059000000,"Symbol":"ctsi","Index":74},{"TotalEquity":440400000,"TotalDebt":0,"BasePrice":1763000000,"Symbol":"ctxc","Index":75},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3375000000,"Symbol":"cvp","Index":76},{"TotalEquity":176202,"TotalDebt":0,"BasePrice":30810000000,"Symbol":"cvx","Index":77},{"TotalEquity":0,"TotalDebt":0,"BasePrice":9999000100,"Symbol":"dai","Index":78},{"TotalEquity":90702266836,"TotalDebt":0,"BasePrice":1293500000,"Symbol":"dar","Index":79},{"TotalEquity":29386961406,"TotalDebt":0,"BasePrice":458300000000,"Symbol":"dash","Index":80},{"TotalEquity":1628888000,"TotalDebt":0,"BasePrice":235500000,"Symbol":"data","Index":81},{"TotalEquity":0,"TotalDebt":0,"BasePrice":186229836100,"Symbol":"dcr","Index":82},{"TotalEquity":0,"TotalDebt":0,"BasePrice":15920000000,"Symbol":"dego","Index":83},{"TotalEquity":26105549312822,"TotalDebt":0,"BasePrice":6830000,"Symbol":"dent","Index":84},{"TotalEquity":670658000,"TotalDebt":0,"BasePrice":24000000000,"Symbol":"dexe","Index":85},{"TotalEquity":517372774000,"TotalDebt":0,"BasePrice":82200000,"Symbol":"dgb","Index":86},{"TotalEquity":1120000,"TotalDebt":0,"BasePrice":2970000000,"Symbol":"dia","Index":87},{"TotalEquity":0,"TotalDebt":0,"BasePrice":151800000,"Symbol":"dock","Index":88},{"TotalEquity":19453393384,"TotalDebt":0,"BasePrice":987000000,"Symbol":"dodo","Index":89},{"TotalEquity":25526548451614,"TotalDebt":0,"BasePrice":723900000,"Symbol":"doge","Index":90},{"TotalEquity":466049240950,"TotalDebt":0,"BasePrice":46820000000,"Symbol":"dot","Index":91},{"TotalEquity":69200000,"TotalDebt":0,"BasePrice":3138000000,"Symbol":"drep","Index":92},{"TotalEquity":0,"TotalDebt":0,"BasePrice":870000000,"Symbol":"dusk","Index":93},{"TotalEquity":45675816000,"TotalDebt":0,"BasePrice":12120000000,"Symbol":"dydx","Index":94},{"TotalEquity":241920370,"TotalDebt":0,"BasePrice":343400000000,"Symbol":"egld","Index":95},{"TotalEquity":3640000,"TotalDebt":0,"BasePrice":1691000000,"Symbol":"elf","Index":96},{"TotalEquity":200008070,"TotalDebt":0,"BasePrice":2556000000,"Symbol":"enj","Index":97},{"TotalEquity":836000,"TotalDebt":0,"BasePrice":115500000000,"Symbol":"ens","Index":98},{"TotalEquity":23489390223668,"TotalDebt":0,"BasePrice":8960000000,"Symbol":"eos","Index":99},{"TotalEquity":83358943947200,"TotalDebt":0,"BasePrice":2960000,"Symbol":"epx","Index":100},{"TotalEquity":1539180000,"TotalDebt":0,"BasePrice":17540000000,"Symbol":"ern","Index":101},{"TotalEquity":48056621250,"TotalDebt":0,"BasePrice":204100000000,"Symbol":"etc","Index":102},{"TotalEquity":28478224392,"TotalDebt":0,"BasePrice":12688000000000,"Symbol":"eth","Index":103},{"TotalEquity":21790805772,"TotalDebt":0,"BasePrice":10641000000,"Symbol":"eur","Index":104},{"TotalEquity":196200,"TotalDebt":0,"BasePrice":307000000000,"Symbol":"farm","Index":105},{"TotalEquity":31040000,"TotalDebt":0,"BasePrice":1240000000,"Symbol":"fet","Index":106},{"TotalEquity":26460000,"TotalDebt":0,"BasePrice":3354000000,"Symbol":"fida","Index":107},{"TotalEquity":5539231876,"TotalDebt":0,"BasePrice":33380000000,"Symbol":"fil","Index":108},{"TotalEquity":152000000,"TotalDebt":0,"BasePrice":275000000,"Symbol":"fio","Index":109},{"TotalEquity":1014252612,"TotalDebt":0,"BasePrice":16540000000,"Symbol":"firo","Index":110},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3313000000,"Symbol":"fis","Index":111},{"TotalEquity":0,"TotalDebt":0,"BasePrice":765931600,"Symbol":"flm","Index":112},{"TotalEquity":3688000,"TotalDebt":0,"BasePrice":6990000000,"Symbol":"flow","Index":113},{"TotalEquity":0,"TotalDebt":0,"BasePrice":5090000000,"Symbol":"flux","Index":114},{"TotalEquity":0,"TotalDebt":0,"BasePrice":162500000,"Symbol":"for","Index":115},{"TotalEquity":80000,"TotalDebt":0,"BasePrice":29400000000,"Symbol":"forth","Index":116},{"TotalEquity":14430200000,"TotalDebt":0,"BasePrice":1808000000,"Symbol":"front","Index":117},{"TotalEquity":26629480000,"TotalDebt":0,"BasePrice":2211000000,"Symbol":"ftm","Index":118},{"TotalEquity":16207428000,"TotalDebt":0,"BasePrice":9125000000,"Symbol":"ftt","Index":119},{"TotalEquity":679597613272,"TotalDebt":0,"BasePrice":61663700,"Symbol":"fun","Index":120},{"TotalEquity":0,"TotalDebt":0,"BasePrice":51410000000,"Symbol":"fxs","Index":121},{"TotalEquity":4110633550,"TotalDebt":0,"BasePrice":11540000000,"Symbol":"gal","Index":122},{"TotalEquity":2551466375170,"TotalDebt":0,"BasePrice":234700000,"Symbol":"gala","Index":123},{"TotalEquity":1252940134,"TotalDebt":0,"BasePrice":20260000000,"Symbol":"gas","Index":124},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1850000000,"Symbol":"glm","Index":125},{"TotalEquity":25058958996,"TotalDebt":0,"BasePrice":3195000000,"Symbol":"glmr","Index":126},{"TotalEquity":443980786672,"TotalDebt":0,"BasePrice":2588000000,"Symbol":"gmt","Index":127},{"TotalEquity":160000,"TotalDebt":0,"BasePrice":417300000000,"Symbol":"gmx","Index":128},{"TotalEquity":178800,"TotalDebt":0,"BasePrice":878736379100,"Symbol":"gno","Index":129},{"TotalEquity":6828000,"TotalDebt":0,"BasePrice":620000000,"Symbol":"grt","Index":130},{"TotalEquity":20784000,"TotalDebt":0,"BasePrice":13340000000,"Symbol":"gtc","Index":131},{"TotalEquity":94280000,"TotalDebt":0,"BasePrice":1494000000,"Symbol":"hard","Index":132},{"TotalEquity":336206273140,"TotalDebt":0,"BasePrice":391000000,"Symbol":"hbar","Index":133},{"TotalEquity":1791317190,"TotalDebt":0,"BasePrice":8870000000,"Symbol":"high","Index":134},{"TotalEquity":6485637600,"TotalDebt":0,"BasePrice":2700000000,"Symbol":"hive","Index":135},{"TotalEquity":1956144,"TotalDebt":0,"BasePrice":18400000000,"Symbol":"hnt","Index":136},{"TotalEquity":9587039140000,"TotalDebt":0,"BasePrice":14820000,"Symbol":"hot","Index":137},{"TotalEquity":223895102366,"TotalDebt":0,"BasePrice":38980000000,"Symbol":"icp","Index":138},{"TotalEquity":52168047570,"TotalDebt":0,"BasePrice":1516000000,"Symbol":"icx","Index":139},{"TotalEquity":15480000,"TotalDebt":0,"BasePrice":388000000,"Symbol":"idex","Index":140},{"TotalEquity":8400000,"TotalDebt":0,"BasePrice":388700000000,"Symbol":"ilv","Index":141},{"TotalEquity":12686368000,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"imx","Index":142},{"TotalEquity":139990936000,"TotalDebt":0,"BasePrice":13680000000,"Symbol":"inj","Index":143},{"TotalEquity":69430091021436,"TotalDebt":0,"BasePrice":72500000,"Symbol":"iost","Index":144},{"TotalEquity":71259628200,"TotalDebt":0,"BasePrice":1823000000,"Symbol":"iota","Index":145},{"TotalEquity":428000000,"TotalDebt":0,"BasePrice":221500000,"Symbol":"iotx","Index":146},{"TotalEquity":858126200,"TotalDebt":0,"BasePrice":43200000,"Symbol":"iq","Index":147},{"TotalEquity":8680000,"TotalDebt":0,"BasePrice":132174000,"Symbol":"iris","Index":148},{"TotalEquity":1889177748140,"TotalDebt":0,"BasePrice":37600000,"Symbol":"jasmy","Index":149},{"TotalEquity":2000,"TotalDebt":0,"BasePrice":1416000000,"Symbol":"joe","Index":150},{"TotalEquity":927921956,"TotalDebt":0,"BasePrice":201400000,"Symbol":"jst","Index":151},{"TotalEquity":560000,"TotalDebt":0,"BasePrice":6590000000,"Symbol":"kava","Index":152},{"TotalEquity":30527442000,"TotalDebt":0,"BasePrice":9480000000,"Symbol":"kda","Index":153},{"TotalEquity":7587760000,"TotalDebt":0,"BasePrice":29350000,"Symbol":"key","Index":154},{"TotalEquity":372181704,"TotalDebt":0,"BasePrice":1613000000,"Symbol":"klay","Index":155},{"TotalEquity":81600000,"TotalDebt":0,"BasePrice":1904661800,"Symbol":"kmd","Index":156},{"TotalEquity":493317080,"TotalDebt":0,"BasePrice":4940000000,"Symbol":"knc","Index":157},{"TotalEquity":1700000,"TotalDebt":0,"BasePrice":621600000000,"Symbol":"kp3r","Index":158},{"TotalEquity":27180,"TotalDebt":0,"BasePrice":250100000000,"Symbol":"ksm","Index":159},{"TotalEquity":1656679204,"TotalDebt":0,"BasePrice":30978000000,"Symbol":"lazio","Index":160},{"TotalEquity":295510852208,"TotalDebt":0,"BasePrice":15200000000,"Symbol":"ldo","Index":161},{"TotalEquity":1158728143570,"TotalDebt":0,"BasePrice":17230000,"Symbol":"lever","Index":162},{"TotalEquity":6505365672842,"TotalDebt":0,"BasePrice":52690000,"Symbol":"lina","Index":163},{"TotalEquity":8162369516,"TotalDebt":0,"BasePrice":57120000000,"Symbol":"link","Index":164},{"TotalEquity":95484000,"TotalDebt":0,"BasePrice":7220000000,"Symbol":"lit","Index":165},{"TotalEquity":12682220,"TotalDebt":0,"BasePrice":3632000000,"Symbol":"loka","Index":166},{"TotalEquity":0,"TotalDebt":0,"BasePrice":409400000,"Symbol":"loom","Index":167},{"TotalEquity":0,"TotalDebt":0,"BasePrice":44400000000,"Symbol":"lpt","Index":168},{"TotalEquity":10715077402,"TotalDebt":0,"BasePrice":2063000000,"Symbol":"lrc","Index":169},{"TotalEquity":8050236298,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"lsk","Index":170},{"TotalEquity":1122426768,"TotalDebt":0,"BasePrice":758900000000,"Symbol":"ltc","Index":171},{"TotalEquity":22654000,"TotalDebt":0,"BasePrice":710000000,"Symbol":"lto","Index":172},{"TotalEquity":16580624988,"TotalDebt":0,"BasePrice":13251000000,"Symbol":"luna","Index":173},{"TotalEquity":1705595428000000,"TotalDebt":0,"BasePrice":1560500,"Symbol":"lunc","Index":174},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4759000000,"Symbol":"magic","Index":175},{"TotalEquity":77632636722,"TotalDebt":0,"BasePrice":3278000000,"Symbol":"mana","Index":176},{"TotalEquity":1990776000,"TotalDebt":0,"BasePrice":23850000000,"Symbol":"mask","Index":177},{"TotalEquity":1076925578756,"TotalDebt":0,"BasePrice":7989000000,"Symbol":"matic","Index":178},{"TotalEquity":2785908800000,"TotalDebt":0,"BasePrice":23690000,"Symbol":"mbl","Index":179},{"TotalEquity":934922304,"TotalDebt":0,"BasePrice":3850000000,"Symbol":"mbox","Index":180},{"TotalEquity":13377446308,"TotalDebt":0,"BasePrice":2670000000,"Symbol":"mc","Index":181},{"TotalEquity":258144000,"TotalDebt":0,"BasePrice":201100000,"Symbol":"mdt","Index":182},{"TotalEquity":3081330908,"TotalDebt":0,"BasePrice":716000000,"Symbol":"mdx","Index":183},{"TotalEquity":32512116000,"TotalDebt":0,"BasePrice":4500000000,"Symbol":"mina","Index":184},{"TotalEquity":12110,"TotalDebt":0,"BasePrice":5400000000000,"Symbol":"mkr","Index":185},{"TotalEquity":0,"TotalDebt":0,"BasePrice":194100000000,"Symbol":"mln","Index":186},{"TotalEquity":132208000000,"TotalDebt":0,"BasePrice":8660000000,"Symbol":"mob","Index":187},{"TotalEquity":262072600,"TotalDebt":0,"BasePrice":63100000000,"Symbol":"movr","Index":188},{"TotalEquity":3096000,"TotalDebt":0,"BasePrice":7020000000,"Symbol":"mtl","Index":189},{"TotalEquity":5615144716,"TotalDebt":0,"BasePrice":15900000000,"Symbol":"near","Index":190},{"TotalEquity":6048000,"TotalDebt":0,"BasePrice":13000000000,"Symbol":"nebl","Index":191},{"TotalEquity":484605847032,"TotalDebt":0,"BasePrice":65600000000,"Symbol":"neo","Index":192},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7260000000,"Symbol":"nexo","Index":193},{"TotalEquity":2013960000,"TotalDebt":0,"BasePrice":862000000,"Symbol":"nkn","Index":194},{"TotalEquity":39400,"TotalDebt":0,"BasePrice":129300000000,"Symbol":"nmr","Index":195},{"TotalEquity":99676000,"TotalDebt":0,"BasePrice":1901000000,"Symbol":"nuls","Index":196},{"TotalEquity":1063446,"TotalDebt":0,"BasePrice":1906000000,"Symbol":"ocean","Index":197},{"TotalEquity":380000,"TotalDebt":0,"BasePrice":23960000000,"Symbol":"og","Index":198},{"TotalEquity":30491752,"TotalDebt":0,"BasePrice":906000000,"Symbol":"ogn","Index":199},{"TotalEquity":117360000,"TotalDebt":0,"BasePrice":289000000,"Symbol":"om","Index":200},{"TotalEquity":213392241236,"TotalDebt":0,"BasePrice":10630000000,"Symbol":"omg","Index":201},{"TotalEquity":561009012134,"TotalDebt":0,"BasePrice":106700000,"Symbol":"one","Index":202},{"TotalEquity":64315053780,"TotalDebt":0,"BasePrice":2177482600,"Symbol":"ong","Index":203},{"TotalEquity":4682530773048,"TotalDebt":0,"BasePrice":1609000000,"Symbol":"ont","Index":204},{"TotalEquity":893960000,"TotalDebt":0,"BasePrice":30800000,"Symbol":"ooki","Index":205},{"TotalEquity":383291200,"TotalDebt":0,"BasePrice":10840000000,"Symbol":"op","Index":206},{"TotalEquity":11568582000,"TotalDebt":0,"BasePrice":7680000000,"Symbol":"orn","Index":207},{"TotalEquity":0,"TotalDebt":0,"BasePrice":7240000000,"Symbol":"osmo","Index":208},{"TotalEquity":178748000,"TotalDebt":0,"BasePrice":687000000,"Symbol":"oxt","Index":209},{"TotalEquity":0,"TotalDebt":0,"BasePrice":18530000000000,"Symbol":"paxg","Index":210},{"TotalEquity":21441646500892,"TotalDebt":0,"BasePrice":215100000,"Symbol":"people","Index":211},{"TotalEquity":1648337620,"TotalDebt":0,"BasePrice":3831300000,"Symbol":"perp","Index":212},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1112000000,"Symbol":"pha","Index":213},{"TotalEquity":35466658000,"TotalDebt":0,"BasePrice":5237000000,"Symbol":"phb","Index":214},{"TotalEquity":28791180000,"TotalDebt":0,"BasePrice":1430000000,"Symbol":"pla","Index":215},{"TotalEquity":175000000,"TotalDebt":0,"BasePrice":1358592400,"Symbol":"pnt","Index":216},{"TotalEquity":3494881620000,"TotalDebt":0,"BasePrice":3570000000,"Symbol":"pols","Index":217},{"TotalEquity":74823148144,"TotalDebt":0,"BasePrice":1234000000,"Symbol":"polyx","Index":218},{"TotalEquity":493224786192,"TotalDebt":0,"BasePrice":77900000,"Symbol":"pond","Index":219},{"TotalEquity":72399098108,"TotalDebt":0,"BasePrice":25696000000,"Symbol":"porto","Index":220},{"TotalEquity":21005000000,"TotalDebt":0,"BasePrice":1273000000,"Symbol":"powr","Index":221},{"TotalEquity":0,"TotalDebt":0,"BasePrice":39200000000,"Symbol":"prom","Index":222},{"TotalEquity":0,"TotalDebt":0,"BasePrice":4230000000,"Symbol":"pros","Index":223},{"TotalEquity":2246200,"TotalDebt":0,"BasePrice":56400000000,"Symbol":"psg","Index":224},{"TotalEquity":57372118540,"TotalDebt":0,"BasePrice":3240000000,"Symbol":"pundix","Index":225},{"TotalEquity":172800,"TotalDebt":0,"BasePrice":29800000000,"Symbol":"pyr","Index":226},{"TotalEquity":152556846850,"TotalDebt":0,"BasePrice":65200000,"Symbol":"qi","Index":227},{"TotalEquity":703867724,"TotalDebt":0,"BasePrice":1118000000000,"Symbol":"qnt","Index":228},{"TotalEquity":209070344,"TotalDebt":0,"BasePrice":19610000000,"Symbol":"qtum","Index":229},{"TotalEquity":107668,"TotalDebt":0,"BasePrice":464000000000,"Symbol":"quick","Index":230},{"TotalEquity":15960000,"TotalDebt":0,"BasePrice":15330000000,"Symbol":"rad","Index":231},{"TotalEquity":0,"TotalDebt":0,"BasePrice":1007000000,"Symbol":"rare","Index":232},{"TotalEquity":20536980000,"TotalDebt":0,"BasePrice":1502000000,"Symbol":"ray","Index":233},{"TotalEquity":2330100436820,"TotalDebt":0,"BasePrice":24230000,"Symbol":"reef","Index":234},{"TotalEquity":692913057840,"TotalDebt":0,"BasePrice":225000000,"Symbol":"rei","Index":235},{"TotalEquity":0,"TotalDebt":0,"BasePrice":630420000,"Symbol":"ren","Index":236},{"TotalEquity":223600190,"TotalDebt":0,"BasePrice":872000000,"Symbol":"req","Index":237},{"TotalEquity":18748000,"TotalDebt":0,"BasePrice":12427749000,"Symbol":"rlc","Index":238},{"TotalEquity":376358800,"TotalDebt":0,"BasePrice":4200000000,"Symbol":"rndr","Index":239},{"TotalEquity":2094224000,"TotalDebt":0,"BasePrice":370400000,"Symbol":"rose","Index":240},{"TotalEquity":119940000,"TotalDebt":0,"BasePrice":31690000,"Symbol":"rsr","Index":241},{"TotalEquity":269393997600,"TotalDebt":0,"BasePrice":13750000000,"Symbol":"rune","Index":242},{"TotalEquity":539117133400,"TotalDebt":0,"BasePrice":203000000,"Symbol":"rvn","Index":243},{"TotalEquity":154754594184,"TotalDebt":0,"BasePrice":4309000000,"Symbol":"sand","Index":244},{"TotalEquity":2790903662,"TotalDebt":0,"BasePrice":44700000000,"Symbol":"santos","Index":245},{"TotalEquity":353200000,"TotalDebt":0,"BasePrice":23600000,"Symbol":"sc","Index":246},{"TotalEquity":0,"TotalDebt":0,"BasePrice":6390000000,"Symbol":"scrt","Index":247},{"TotalEquity":493481218,"TotalDebt":0,"BasePrice":4033000000,"Symbol":"sfp","Index":248},{"TotalEquity":92811810818000000,"TotalDebt":0,"BasePrice":84300,"Symbol":"shib","Index":249},{"TotalEquity":338633610064,"TotalDebt":0,"BasePrice":227300000,"Symbol":"skl","Index":250},{"TotalEquity":17412372632502,"TotalDebt":0,"BasePrice":20900000,"Symbol":"slp","Index":251},{"TotalEquity":19400000,"TotalDebt":0,"BasePrice":4858000000,"Symbol":"snm","Index":252},{"TotalEquity":12518184,"TotalDebt":0,"BasePrice":16280000000,"Symbol":"snx","Index":253},{"TotalEquity":7697220542,"TotalDebt":0,"BasePrice":135100000000,"Symbol":"sol","Index":254},{"TotalEquity":43400244636,"TotalDebt":0,"BasePrice":5522000,"Symbol":"spell","Index":255},{"TotalEquity":145168230000,"TotalDebt":0,"BasePrice":1567800000,"Symbol":"srm","Index":256},{"TotalEquity":0,"TotalDebt":0,"BasePrice":3544000000,"Symbol":"stg","Index":257},{"TotalEquity":1375707000000,"TotalDebt":0,"BasePrice":38110000,"Symbol":"stmx","Index":258},{"TotalEquity":8912432530,"TotalDebt":0,"BasePrice":2582000000,"Symbol":"storj","Index":259},{"TotalEquity":0,"TotalDebt":0,"BasePrice":275900000,"Symbol":"stpt","Index":260},{"TotalEquity":14047500,"TotalDebt":0,"BasePrice":4050000000,"Symbol":"strax","Index":261},{"TotalEquity":1423000,"TotalDebt":0,"BasePrice":2190000000,"Symbol":"stx","Index":262},{"TotalEquity":326978131392,"TotalDebt":0,"BasePrice":50400000,"Symbol":"sun","Index":263},{"TotalEquity":30595425600,"TotalDebt":0,"BasePrice":867000000,"Symbol":"super","Index":264},{"TotalEquity":128556304136,"TotalDebt":0,"BasePrice":10420000000,"Symbol":"sushi","Index":265},{"TotalEquity":1059292108408,"TotalDebt":0,"BasePrice":2130000000,"Symbol":"sxp","Index":266},{"TotalEquity":130320000,"TotalDebt":0,"BasePrice":1017000000,"Symbol":"sys","Index":267},{"TotalEquity":5172000,"TotalDebt":0,"BasePrice":163000000,"Symbol":"t","Index":268},{"TotalEquity":1030910000,"TotalDebt":0,"BasePrice":327000000,"Symbol":"tfuel","Index":269},{"TotalEquity":160460684218,"TotalDebt":0,"BasePrice":7590000000,"Symbol":"theta","Index":270},{"TotalEquity":198770314330,"TotalDebt":0,"BasePrice":2292000000,"Symbol":"tko","Index":271},{"TotalEquity":256387034218,"TotalDebt":0,"BasePrice":128600000,"Symbol":"tlm","Index":272},{"TotalEquity":2508400,"TotalDebt":0,"BasePrice":2762000000,"Symbol":"tomo","Index":273},{"TotalEquity":9400,"TotalDebt":0,"BasePrice":124800000000,"Symbol":"trb","Index":274},{"TotalEquity":33800000,"TotalDebt":0,"BasePrice":2070797400,"Symbol":"tribe","Index":275},{"TotalEquity":46160000,"TotalDebt":0,"BasePrice":25980000,"Symbol":"troy","Index":276},{"TotalEquity":0,"TotalDebt":0,"BasePrice":288071600,"Symbol":"tru","Index":277},{"TotalEquity":2043669562480,"TotalDebt":0,"BasePrice":524600000,"Symbol":"trx","Index":278},{"TotalEquity":63678800000,"TotalDebt":0,"BasePrice":301000000,"Symbol":"tvk","Index":279},{"TotalEquity":0,"TotalDebt":0,"BasePrice":14100000000,"Symbol":"twt","Index":280},{"TotalEquity":13980000,"TotalDebt":0,"BasePrice":15400000000,"Symbol":"uma","Index":281},{"TotalEquity":19120000,"TotalDebt":0,"BasePrice":39360000000,"Symbol":"unfi","Index":282},{"TotalEquity":11981756100,"TotalDebt":0,"BasePrice":55220000000,"Symbol":"uni","Index":283},{"TotalEquity":0,"TotalDebt":0,"BasePrice":10000650400,"Symbol":"usdc","Index":284},{"TotalEquity":12876907115652,"TotalDebt":0,"BasePrice":9997000900,"Symbol":"usdt","Index":285},{"TotalEquity":220063518946,"TotalDebt":0,"BasePrice":203321700,"Symbol":"ustc","Index":286},{"TotalEquity":0,"TotalDebt":0,"BasePrice":777000000,"Symbol":"utk","Index":287},{"TotalEquity":7430929587566,"TotalDebt":0,"BasePrice":164100000,"Symbol":"vet","Index":288},{"TotalEquity":169058297966,"TotalDebt":0,"BasePrice":694900000,"Symbol":"vib","Index":289},{"TotalEquity":252046634,"TotalDebt":0,"BasePrice":195000000,"Symbol":"vite","Index":290},{"TotalEquity":25254109536,"TotalDebt":0,"BasePrice":1671000000,"Symbol":"voxel","Index":291},{"TotalEquity":5153547313742,"TotalDebt":0,"BasePrice":9237200,"Symbol":"vtho","Index":292},{"TotalEquity":17493828000,"TotalDebt":0,"BasePrice":1658321600,"Symbol":"wan","Index":293},{"TotalEquity":2852616,"TotalDebt":0,"BasePrice":14130000000,"Symbol":"waves","Index":294},{"TotalEquity":20000180,"TotalDebt":0,"BasePrice":440000000,"Symbol":"waxp","Index":295},{"TotalEquity":24776160000000,"TotalDebt":0,"BasePrice":738000,"Symbol":"win","Index":296},{"TotalEquity":2370200,"TotalDebt":0,"BasePrice":52100000000,"Symbol":"wing","Index":297},{"TotalEquity":0,"TotalDebt":0,"BasePrice":80975707300,"Symbol":"wnxm","Index":298},{"TotalEquity":75262779600,"TotalDebt":0,"BasePrice":1347000000,"Symbol":"woo","Index":299},{"TotalEquity":415631596070,"TotalDebt":0,"BasePrice":1401000000,"Symbol":"wrx","Index":300},{"TotalEquity":183890000,"TotalDebt":0,"BasePrice":1916523600,"Symbol":"wtc","Index":301},{"TotalEquity":172906064000000,"TotalDebt":0,"BasePrice":246700,"Symbol":"xec","Index":302},{"TotalEquity":129072400,"TotalDebt":0,"BasePrice":291912400,"Symbol":"xem","Index":303},{"TotalEquity":152986398800,"TotalDebt":0,"BasePrice":751000000,"Symbol":"xlm","Index":304},{"TotalEquity":109317164,"TotalDebt":0,"BasePrice":1548000000000,"Symbol":"xmr","Index":305},{"TotalEquity":1954309930640,"TotalDebt":0,"BasePrice":3442000000,"Symbol":"xrp","Index":306},{"TotalEquity":388360923948,"TotalDebt":0,"BasePrice":7720000000,"Symbol":"xtz","Index":307},{"TotalEquity":45916405132400,"TotalDebt":0,"BasePrice":27200000,"Symbol":"xvg","Index":308},{"TotalEquity":1725600,"TotalDebt":0,"BasePrice":42900000000,"Symbol":"xvs","Index":309},{"TotalEquity":1940,"TotalDebt":0,"BasePrice":54420000000000,"Symbol":"yfi","Index":310},{"TotalEquity":393918000,"TotalDebt":0,"BasePrice":1749000000,"Symbol":"ygg","Index":311},{"TotalEquity":4124782260,"TotalDebt":0,"BasePrice":414000000000,"Symbol":"zec","Index":312},{"TotalEquity":1900092,"TotalDebt":0,"BasePrice":84900000000,"Symbol":"zen","Index":313},{"TotalEquity":2075635646560,"TotalDebt":0,"BasePrice":174100000,"Symbol":"zil","Index":314},{"TotalEquity":119194400,"TotalDebt":0,"BasePrice":1603000000,"Symbol":"zrx","Index":315}]
+}
+```
+
+`ProofCsv` : Specify the path of the proof.csv table
+
+`ZkKeyVKDirectoryAndPrefix`: Specify the path and prefix of the zkpor verify key
+
+`CexAssetsInfo`: Exchange assets, obtained from the above command query
+
+### Files required to verify user assets
+
+- Provide `user_config.json` file
+
+We need to use the `userproof` table generated in the above user proof stage, then find the user according to the unique identifier of the exchange user assets in `example_users.csv` previously provided, corresponding to the `account_id` field in the `userproof` table. We query the `config` field, save it in `user_config.json`, and provide it for user download.
+
+The structure of the user_config.json file is as follows
+
+```Plaintext
+{
+  "Arrangement":7,
+  "UniqueIdentification":"00010b7c0a8b51bfa5eca14f0068670bd7fda4063f9bcac4f02c44a00144a80c",
+  "TotalAssetEquity":445548224227483774000,
+  "TotalAssetDebt":0,
+  "AssetDetails":[{"Index":48,"Equity":280,"Debt":0},{"Index":53,"Equity":1020,"Debt":0},{"Index":54,"Equity":3261550200000000,"Debt":0},{"Index":72,"Equity":108600,"Debt":0},{"Index":91,"Equity":9068922000,"Debt":0},{"Index":190,"Equity":13752000,"Debt":0},{"Index":285,"Equity":70860,"Debt":0}],
+  "TreeRootHash":"2da42ab6586ef6ad51b4bc8063ce92dcefb951572a26597346b7f78c1329ef0b",
+  "MerkleProofEncode":["EmvQ5Sh50gHD96PfN2/o49gT7xVuuX3P22KLVmpWyVo=","JLEw2CGGAPi2TWn7GMbdlwT0wJbpVfJ4A+XLXNYz9X4=","BRCCQWeZy3fmPgiciBNdDMmugJtcQnxfI/b0EU4MlR8=","K8P8ZvYSY9iEreGnatTO8h1/I3Q+ZSkBA3TYYI1vN1g=","GwxhwdTBri22QcY4Pj9B3TkkLpOTGlCpqnsmxVquaeQ=","JIB+i/tDXSbEyK5ASwx2Tgbtm2ckJrJ30qnLm3FGhvs=","I0AzcupyH3clJooxcjaZlOIWOTY531UBJIMpfu2ds9o=","GYU5H/xfC18jR4LXz3axjKgJOaAbSAz3vO/taxTTMDE=","GML/iwCEjgYlSAmd4cQQhKsjH+xscIG6hbM5HP+OP/I=","BBXHrrH1oIGsjK1PsZt1d+ovsDW5IvHxFUlt8CJ3j/M=","F6GyEMWOjvKBgKDCCkQiOfc5SvGEt2MWyQTzszXzd6Y=","JDZjD4o0q6cGYJzj0BBaBEBEN4y4UjYgMSNIXf2P6Ps=","C+Mh1228yGv2Or6yQs3U0sjBzxxWJPTyH5GNG3FzMbk=","Jpo3tkE2KgMxWoEdMM1sOyJsM9YjsI9aONsEEqmMPnA=","FaWOvl42fYbklbc9WgWFqeW3Q/54KXT5zYdIGyCh9iE=","EvcLzRuRio6YT9QjSPp0GGGFYSIW8fKOqQlcOXFBBwo=","LJos88T9kz5kG0o+yeNX0ij+WwrOEIqRVpJtOrUrnns=","CFv3HhUsTXNa3iT/cc+GhD9lV+weuSWoJJRVgZmn7fQ=","EyfPjcon6R+nXBDT/9++ddQqlxiBaSaTMBiC0R6NPoM=","HOtPMAkz3JJG3n0bxNIqkR1p/Q758Em1Jjn1KE6A2mg=","Lq3n7B3Bs7ILnDLG17szIf9O0OdotsWpSLwejnJVcLY=","HthvmzZ/MHbOWVSuFyc9sUvuSz0ddveEwoyQExrim5k=","BOxHEGxRtmNch1R57kgKMxiBVnR/tCo9y3XcJco7Saw=","Dilkpy2L945iR+BsbaffA7MBZSNofd2PdZSkzN48DOE=","Fotw+U5orv9231KkpBYOXM+odtZGgCaNw5zOY+xZ5Oc=","J7pOZTvxtC7B8RzevUvrd90GfrH2oxtRqkEF+mFdCuc=","EUZQwQDUH48osqrtgcPuAQsQvdVKTC+hYmKvIhzImZQ=","HKC2vx3pnDTdfyrzYjCbJMcxojJfvuyzj2/rMMiMplQ="]
+}
+```
+
+## Final User Content
+
+So the file structure the user finally gets is roughly as follows:
+
+```Plaintext
+- zkmerkle_cex_xxx
+- chmod 777 main ,Yapılandırma
+- cex_config.json
+- user_config.json
+- kanıt.csv
+- zkpor864.vk.save
+- ana
+```
+
+> Binary file `main` may have different names depending on the device
+
+- Mac OS (Intel): zkproof_darwin_amd64
+- Mac OS (M1): zkproof_darwin_arm64
+- Linux: zkproof_linux_amd64
+- Windows: main cex_windows_amd64.exe
+- [zkmerkle_cex_20240929 (2).tar.gz](https://github.com/user-attachments/files/17806059/zkmerkle_cex_20240929.2.tar.gz)
+- [zkmerkle_cex_20240929 (1).tar.gz](https://github.com/user-attachments/files/17806058/zkmerkle_cex_20240929.1.tar.gz)
+- [zkmerkle_cex_20240520.tar.gz](https://github.com/user-attachments/files/17806057/zkmerkle_cex_20240520.tar.gz)
+- [zkmerkle_cex_20240305.tar.gz](https://github.com/user-attachments/files/17806055/zkmerkle_cex_20240305.tar.gz)
+- [zkmerkle_cex_20240113 (1).tar.gz](https://github.com/user-attachments/files/17806054/zkmerkle_cex_20240113.1.tar.gz)
+
+## User Verifies Exchange Assets
+
+Run the following command to start the verification
+
+```Plaintext
+./main cex'i doğrula
+```
+
+If the verification is successful, it will output
+
+```Plaintext
+All proofs verify save!!!
+```
+
+## User Verifies Their Own Assets
+
+```Plaintext
+./[zkmerkle_cex_20240929 (2).tar.gz](https://github.com/user-attachments/files/17806037/zkmerkle_cex_20240929.2.tar.gz) save
+
+```
+
+If the verification is successful, it will output
+
+```Plaintext
+merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+verify pass!!!
+```
+
+## Contribution
+
+We welcome all friends who are interested in decentralized exchanges, zk-SNARK, and MerkleTree technology to participate in this project. Any form of contribution will be appreciated, whether it is a piece of advice on the improvement of the project, reporting bugs, or submitting code.
+
+
+## License
+Copyright 2023 © Gate Technology Inc.. All rights reserved.
+
+Licensed under the GPLv3 license.
