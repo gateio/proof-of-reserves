@@ -90,5 +90,9 @@ var (
 		"natix":      true,
 		"cat":        true,
 		"atlas":      true,
+		"zbai":       true,
+		"akita":      true,
+		"neirocto":   true,
+		"lever":      true,
 	}
 )
