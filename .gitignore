@@ -1,7 +1,0 @@
-/node_modules/
-/package-lock.json
-/nohup.out
-/nohup.err
-/.idea
-bundle.js
-.DS_Store
