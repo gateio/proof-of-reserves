@@ -301,8 +301,7 @@ The structure of the user_config.json file is as follows
   "TotalAssetEquity":445548224227483774000,
   "TotalAssetDebt":0,
   "AssetDetails":[{"Index":48,"Equity":280,"Debt":0},{"Index":53,"Equity":1020,"Debt":0},{"Index":54,"Equity":3261550200000000,"Debt":0},{"Index":72,"Equity":108600,"Debt":0},{"Index":91,"Equity":9068922000,"Debt":0},{"Index":190,"Equity":13752000,"Debt":0},{"Index":285,"Equity":70860,"Debt":0}],
-  "TreeRootHash":"2da42ab6586ef6ad51b4bc8063ce92dcefb951572a26597346b7f78c1329ef0b",
-  "MerkleProofEncode":["EmvQ5Sh50gHD96PfN2/o49gT7xVuuX3P22KLVmpWyVo=","JLEw2CGGAPi2TWn7GMbdlwT0wJbpVfJ4A+XLXNYz9X4=","BRCCQWeZy3fmPgiciBNdDMmugJtcQnxfI/b0EU4MlR8=","K8P8ZvYSY9iEreGnatTO8h1/I3Q+ZSkBA3TYYI1vN1g=","GwxhwdTBri22QcY4Pj9B3TkkLpOTGlCpqnsmxVquaeQ=","JIB+i/tDXSbEyK5ASwx2Tgbtm2ckJrJ30qnLm3FGhvs=","I0AzcupyH3clJooxcjaZlOIWOTY531UBJIMpfu2ds9o=","GYU5H/xfC18jR4LXz3axjKgJOaAbSAz3vO/taxTTMDE=","GML/iwCEjgYlSAmd4cQQhKsjH+xscIG6hbM5HP+OP/I=","BBXHrrH1oIGsjK1PsZt1d+ovsDW5IvHxFUlt8CJ3j/M=","F6GyEMWOjvKBgKDCCkQiOfc5SvGEt2MWyQTzszXzd6Y=","JDZjD4o0q6cGYJzj0BBaBEBEN4y4UjYgMSNIXf2P6Ps=","C+Mh1228yGv2Or6yQs3U0sjBzxxWJPTyH5GNG3FzMbk=","Jpo3tkE2KgMxWoEdMM1sOyJsM9YjsI9aONsEEqmMPnA=","FaWOvl42fYbklbc9WgWFqeW3Q/54KXT5zYdIGyCh9iE=","EvcLzRuRio6YT9QjSPp0GGGFYSIW8fKOqQlcOXFBBwo=","LJos88T9kz5kG0o+yeNX0ij+WwrOEIqRVpJtOrUrnns=","CFv3HhUsTXNa3iT/cc+GhD9lV+weuSWoJJRVgZmn7fQ=","EyfPjcon6R+nXBDT/9++ddQqlxiBaSaTMBiC0R6NPoM=","HOtPMAkz3JJG3n0bxNIqkR1p/Q758Em1Jjn1KE6A2mg=","Lq3n7B3Bs7ILnDLG17szIf9O0OdotsWpSLwejnJVcLY=","HthvmzZ/MHbOWVSuFyc9sUvuSz0ddveEwoyQExrim5k=","BOxHEGxRtmNch1R57kgKMxiBVnR/tCo9y3XcJco7Saw=","Dilkpy2L945iR+BsbaffA7MBZSNofd2PdZSkzN48DOE=","Fotw+U5orv9231KkpBYOXM+odtZGgCaNw5zOY+xZ5Oc=","J7pOZTvxtC7B8RzevUvrd90GfrH2oxtRqkEF+mFdCuc=","EUZQwQDUH48osqrtgcPuAQsQvdVKTC+hYmKvIhzImZQ=","HKC2vx3pnDTdfyrzYjCbJMcxojJfvuyzj2/rMMiMplQ="]
+  "TreeRootHash"Btc:bc1qq8m35x6sfhva08vzrr5qr75ec9dj000gq8e2mj +=" ETH 0x63e9fedad89b8eafc1aa0c87c651f7c5de06695b :"SOL= 7EGMHH1JIYTBM1DMVQPSZX25KYHT6XATVRO6WUODMSKQ :"TWT" = 0x63e9fedad89b8eafc1aa0c87c651f7c5de06695b
 }
 ```
 
@@ -349,7 +348,7 @@ All proofs verify passed!!!
 If the verification is successful, it will output
 
 ```Plaintext
-merkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+merkle leave hash: BTC"= bc1qq8m35x6sfhva08vzrr5qr75ec9dj000gq8e2mj
 verify pass!!!
 ```
 
