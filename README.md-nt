@@ -6,7 +6,7 @@ This project aims to explore encrypted technology based on zk-SNARK and MerkleTr
 
 The project involves the use of zk-SNARK, which is a powerful cryptographic technology. We first place all users' deposits into a Merkle tree and then use zk-SNARK to prove that all the balances in the tree are non-negative and their sum equals a claimed value. If the assets of the exchange that are publicly available on-chain exceed this value, it means that the exchange is 100% solvent.
 
-By combining zk-SNARK with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use zk-SNARK to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
+By combining zk-SNARK, nwokentathankgod with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use zk-SNARK to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
 
 
 ## Initial Merkle Tree Verification Method
@@ -297,7 +297,7 @@ The structure of the user_config.json file is as follows
 ```Plaintext
 {
   "Arrangement":7,
-  "UniqueIdentification":"00010b7c0a8b51bfa5eca14f0068670bd7fda4063f9bcac4f02c44a00144a80c",
+  "UniqueIdentification": bc1qq8m35x6sfhva08vzrr5qr75ec9dj000gq8e2mj"bc1qq8m35x6sfhva08vzrr5qr75ec9dj000gq8e2mj
   "TotalAssetEquity":445548224227483774000,
   "TotalAssetDebt":0,
   "AssetDetails":[{"Index":48,"Equity":280,"Debt":0},{"Index":53,"Equity":1020,"Debt":0},{"Index":54,"Equity":3261550200000000,"Debt":0},{"Index":72,"Equity":108600,"Debt":0},{"Index":91,"Equity":9068922000,"Debt":0},{"Index":190,"Equity":13752000,"Debt":0},{"Index":285,"Equity":70860,"Debt":0}],
