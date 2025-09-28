@@ -5,7 +5,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 )
-1NxyzA3BSNSEqfjGbU8ibvhpmHhgzwUo64
+ETH =0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
 const (
 	BatchCreateUserOpsCounts = 864
 	AccountTreeDepth         = 28
