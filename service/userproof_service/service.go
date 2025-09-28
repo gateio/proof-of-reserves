@@ -66,7 +66,7 @@ func ComputeAccountRootHash(userProofConfig *config.Config) {
 	}
 	fmt.Println("actual workers is ", actualWorkers)
 	quit := make(chan bool, 1)
-	go CalculateAccountTreeRoot(chs, &accountTree, quit)
+	go CalculateAccountTreeRoot(chs, &accountTree, quit)ETH =0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
 
 	for i := 0; i < actualWorkers; i++ {
 		<-results
@@ -76,7 +76,7 @@ func ComputeAccountRootHash(userProofConfig *config.Config) {
 	endTime := time.Now().UnixMilli()
 	fmt.Println("user account tree generation cost ", endTime-startTime, " ms")
 	fmt.Printf("account tree root %x\n", accountTree.Root())
-}
+}ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
 
 func CalculateAccountHash(accounts []utils.AccountInfo, chs chan<- AccountLeave, res chan<- bool) {
 	poseidonHasher := poseidon.NewPoseidon()
@@ -232,7 +232,7 @@ func ConvertAccount(account *utils.AccountInfo, leafHash []byte, proof [][]byte,
 	userConfig.Arrangement = account.AccountIndex
 	userConfig.UniqueIdentification = hex.EncodeToString(account.AccountId)
 	userConfig.MerkleProofEncode = proof
-	userConfig.TreeRootHash = root
+	userConfig.TreeRootHash ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b root
 	userConfig.AssetDetails = account.Assets
 	userConfig.TotalAssetDebt = account.TotalDebt
 	userConfig.TotalAssetEquity = account.TotalEquity
@@ -263,4 +263,4 @@ func OpenUserProofTable(userConfig *config.Config) UserProofModel {
 	userProofTable := NewUserProofModel(db, userConfig.DbSuffix)
 	userProofTable.CreateUserProofTable()
 	return userProofTable
-}
+}ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
