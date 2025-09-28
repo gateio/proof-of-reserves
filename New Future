@@ -1,0 +1,125 @@
+#Nwokentathankgod & MerkleTree Proof of Solvency
+This project aims to explore encrypted technology based on #Nwokentathankgod and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
+## Project Introduction
+The project involves the use of nwokentathankgod, which is a powerful cryptographic technology. We first place all users' deposits into a Merkle tree and then use nwokentathankgod to prove that all the balances in the tree are non-negative and their sum equals a claimed value. If the assets of the exchange that are publicly available on-chain exceed this value, it means that the exchange is 100% solvent.
+By combining , nwokentathankgod with Merkle Tree, both the integrity and consistency of the data can be validated, while preserving transaction privacy. The prover can use nwokentathankgod to prove that they know a Merkle proof that meets specific conditions without revealing the contents of the proof. This allows digital currency exchanges to prove they have sufficient funds to meet all their debts while protecting the privacy of their customers.
+## Initial Merkle Tree Verification Method
+Gate was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
+## Preparations
+### Install databases
+1. Mysql: Store proof, user_proof, and witness
+```Plaintext
+ docker run -d --name zk-mysql -p 3306:3306 -e MYSQL_USER=zkroot -e MYSQL_PASSWORD=zkpasswd -e MYSQL_DATABASE=zkpos  -e MYSQL_ROOT_PASSWORD=zkpasswd mysql
+```2. Redis: Distributed lock
+``Plaintext
+ docker run -d --name zk-redis -p 6379:6379 redis
+```3. Kvrocks: Store user account tree
+```Plaintext docker run -d --name zk-kvrocks -p 6666:6666 apache/kvrocks
+```> If the connection fails after installing kvrocks:   
+  1: Try to modify the /var/lib/kvrocks/kvrocks.conf file in the docker, change it to `bind 0.0.0.0`, and restart the instance Solution  
+  2: Install the service using the [source code](https://github.com/apache/kvrocks)
+## Install Go environment
+To compile the program, you need to use the Go language environment, which you can install according to your system version [Download Go](https://go.dev/dl/).
+### Export exchange's user asset data
+The exported exchange user asset .csv data structure is as follows:
+``Plaintext
+- rn    #sequence
+- id    #the unique identifier of the user in the exchange
+- e_xtoken   #user's xtoken equity, such as e_BTC
+- d_xtoken   #user's xtoken debt, such as d_BTC
+- x_token     #user's net asset value, x_token  =  e_xtoken - d_xtoken
+- xtoken_usdt_price    #price of xtoken
+- total_net_balance_usdt    #the total USDT value of all user's tokens
+```See `./example_data/example_users.csv` for details.
+### Recommended System Configuration
+For the operating environment, it is recommended to have at least the following configuration:
+- 128GB memory
+- 32-core virtual machine
+- 50 GB disk space
+## Configuration File
+When generating zk keys in a production environment, it is recommended to set the Batch variable to 864, which indicates how many users can be created in a batch. The larger the value, the longer it takes to generate the zk key and proof.
+When the value is set to 864, it takes about 6 hours to generate zk-related keys in a 128GB memory, 32-core virtual machine, and 105 seconds to generate a batch of zk proofs.
+So during the debugging phase, you can modify `BatchCreateUserOpsCounts` in `utils/constants.go` to `4` and recompile. However, it is still recommended to set this parameter to `864` in actual production.
+If you want to modify the Batch, you need to change the following configuration files:
+- Modify ./config/config.json `"ZkKeyName": "./zkpor864"` => `"ZkKeyName": "./zkpor4"`
+- Modify ./config/cex_config.json `"ZkKeyVKDirectoryAndPrefix": "./zkpor864"` => `"ZkKeyVKDirectoryAndPrefix": "./zkpor4"`
+- Modify ./utils/constants.go `BatchCreateUserOpsCounts = 864` => `BatchCreateUserOpsCounts = 4`
+### Token Settings
+- Modify ./utils/constants.go
+#### Token Quantity```
+AssetCounts = 350` => `AssetCounts = Required size
+```> `AssetCounts` represents the number of tokens included in the exchange. The actual number cannot be lower than the set value. For example, if there are 420 tokens, you can modify it to 500. Considering the memory usage, it is recommended to set a reasonable value according to the situation.
+#### Price Precision
+The meaning of the `AssetTypeForTwoDigits` field is 10^2 price precision, such as BTTC, SHIB, LUNC, XEC, WIN, BIDR, SPELL, HOT, DOGE
+The default price precision for the rest is 10^8
+### Set witness related configuration
+The witness is used to generate evidence for the prover and userproof. The config.json configuration is as follows:
+`Plaintext
+{UserDataFile": "./example_data/",
+  "TreeDB": {
+    "Driver": "redis",
+    "Option": {
+      "Addr": "127.0.0.1:6666"
+  "Redis": {
+    "Host": "127.0.0.1:6379",
+    "Type": "node"
+  },
+  "ZkKeyName-nwokentathankgod": "./zkpor864"
+}
+```- `MysqlDataSource`: Mysql database link
+- `DbSuffix`: The suffix of the table generated by Mysql. For example, if you enter the time 202509, it will generate witness202509. **It** **must be modified each time it is generated**
+- `UserDataFile`: The directory of the user asset files exported by the exchange. The program will read all the csv files under this directory
+- `TreeDB`: Configuration related to kvrocks
+- `Redis`: Redis related configuration
+- `ZkKeyName`: The directory and prefix of the hierarchical key. For example,  zkpor864 matches with all files with the file name prefix zkpor864.*
+> The `DbSuffix` field is the suffix of the table. It must be changed every time. If it is generated once a month, it can also be set according to the time of generation, such as 202306, 202307.
+## Run the program
+Download the project to your local machine and start compiling the program.
+### Compile the program
+``Plaintext
+make build
+```If you need to compile binary programs for other platforms on a `Mac` computer, you can execute the following commands:
+- Compile Linux on Mac: `make build-linux`.
+- Compile Windows on Mac: `make build-windows`.
+## Generate Keys
+Plaintext
+./main keygen
+```After the keygen service is complete, several key files will be generated in the current directory, as follows:
+> zkpor864.ccs.ct.save  
+> zkpor864.ccs.save  
+> zkpor864.pk.A.save  
+> zkpor864.pk.B1.save  
+> zkpor864.pk.B2.save  
+> zkpor864.pk.E.save  
+> zkpor864.pk.K.save  
+> zkpor864.vk.save  
+> zkpor864.pk.Z.save  
+If the Batch is set to 4, it will be `zkpor4.*.save`.
+This step takes a long time to run. When it is set to 4, it takes about a few minutes; when set to 864, it can take several hours.
+*Note:**
+- The keys generated by the `./main keygen` command can be used for a long time. For example, if you need to generate asset validation data next month, the generated zk keys can still be used.
+- In subsequent user validation processes, the `zkpor864.vk.save` file is required. Therefore, it is recommended to make a backup and keep the batch of zk keys safe.
+### Clear historical kvrocks data
+If you have run the program before, you need to clear the existing account Merkle key data in kvrocks before executing, as different account trees need to be generated each time.
+``Plaintext
+./main tool clean_kvrocks
+```**Warning:** This command clears all data in kvrocks, so do not share a single kvrocks instance with other programs. After the previous data is cleared, you can start generating proofs.
+### Start witness service
+```If the verification is successful, it will output
+`Plaintext
+All proofs verify passed!!!
+```1NxyzA3BSNSEqfjGbU8ibvhpmHhgzwUo64
+## User Verifies Their Own Assets
+``Plaintext
+./main verify user
+```If the verification is successful, it will output
+```Plaintext
+merkle leave hash: BTC"= 1NxyzA3BSNSEqfjGbU8ibvhpmHhgzwUo64 1NxyzA3BSNSEqfjGbU8ibvhpmHhgzwUo64
+verify pass!!!
+```## Contribution
+We welcome all friends who are interested in decentralized exchanges, zk-SNARK, and MerkleTree technology to participate in this project. Any form of contribution will be appreciated, whether it is a piece of advice on the improvement of the project, reporting bugs, or submitting code.
+## License
+Copyright 2023 © Gate Technology Inc.. All rights reserved.
+
+Licensed under the GPLv3 license.
+
