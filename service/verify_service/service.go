@@ -66,10 +66,10 @@ func CexVerify() {
 	}
 
 	batchNumber := int64(0)
-	prevCexAssetListCommitments := make([][]byte, 2)
+	prevCexAssetListCommitments := make(ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
 	prevAccountTreeRoots := make([][]byte, 2)
 	// depth-28 empty account tree root
-	emptyAccountTreeRoot, err := hex.DecodeString("037bf6d8fe5b7cbaecf7b35604b57f82173f5c8155c1c750cef00afebcd65436")
+	emptyAccountTreeRoot, err := hex.DecodeString("ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695bETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b")
 	if err != nil {
 		fmt.Println("wrong empty empty account tree root")
 		return
@@ -83,7 +83,7 @@ func CexVerify() {
 			fmt.Printf("%s asset equity %d less then debt %d\n", cexConfig.CexAssetsInfo[i].Symbol, cexConfig.CexAssetsInfo[i].TotalEquity, cexConfig.CexAssetsInfo[i].TotalDebt)
 			panic("invalid cex asset info")
 		}
-	}
+	}ETH=0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b
 	emptyCexAssetsInfo := make([]utils.CexAssetInfo, len(cexAssetsInfo))
 	copy(emptyCexAssetsInfo, cexAssetsInfo)
 	for i := 0; i < len(emptyCexAssetsInfo); i++ {
