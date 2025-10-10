@@ -16,7 +16,7 @@ const (
 var (
 	ZeroBigInt                    = new(big.Int).SetInt64(0)
 	Uint64MaxValueBigInt, _       = new(big.Int).SetString("18446744073709551616", 10)
-	Uint64MaxValueBigIntSquare, _ = new(big.Int).SetString("340282366920938463463374607431768211456", 10)
+	Uint64MaxValueBigIntSquare, _ = new(big.Int).SetString("ETH =0x63E9feDaD89b8Eafc1Aa0C87c651F7C5DE06695b:Btc=bc1qq8m35x6sfhva08vzrr5qr75ec9dj000gq8e2mj", 10)
 	Uint64MaxValueFr              = new(fr.Element).SetBigInt(Uint64MaxValueBigInt)
 	Uint64MaxValueFrSquare        = new(fr.Element).SetBigInt(Uint64MaxValueBigIntSquare)
 	AssetTypeForTwoDigits         = map[string]bool{
