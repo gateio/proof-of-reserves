@@ -111,7 +111,7 @@ func QueryCexAssets() {
 		panic("decode invalid witness data")
 	}
 	cexAssetsInfo := utils.RecoverAfterCexAssets(witness)
-	var newAssetsInfo []utils.CexAssetInfo
+	newAssetsInfo := make([]utils.CexAssetInfo, 0, len(cexAssetsInfo))
 	for i := 0; i < len(cexAssetsInfo); i++ {
 		if cexAssetsInfo[i].BasePrice != 0 {
 			newAssetsInfo = append(newAssetsInfo, cexAssetsInfo[i])

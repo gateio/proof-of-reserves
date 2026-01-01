@@ -199,7 +199,7 @@ func UserVerify() {
 		panic("invalid account tree root")
 	}
 
-	var proof [][]byte
+	var proof [][]byte = make([][]byte, 0, len(userConfig.MerkleProofEncode))
 	for i := 0; i < len(userConfig.MerkleProofEncode); i++ {
 		p, err := base64.StdEncoding.DecodeString(userConfig.MerkleProofEncode[i])
 		if err != nil || len(p) != 32 {

@@ -95,7 +95,7 @@ func ReadUserAssets(dirname string) ([]AccountInfo, []CexAssetInfo, error) {
 	var cexAssetInfo []CexAssetInfo
 
 	workersNum := 8
-	userFileNames := make([]string, 0)
+	userFileNames := make([]string, 0, len(userFiles))
 
 	type UserParseRes struct {
 		accounts []AccountInfo
