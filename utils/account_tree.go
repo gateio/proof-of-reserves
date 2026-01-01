@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/poseidon"
 	zk_smt "github.com/gatechain/gate-zk-smt"
@@ -79,7 +80,7 @@ func VerifyMerkleProof(root []byte, accountIndex uint32, proof [][]byte, node []
 		node = hasher.Sum(nil)
 		hasher.Reset()
 	}
-	if string(node) != string(root) {
+	if !bytes.Equal(node, root) {
 		return false
 	}
 	return true

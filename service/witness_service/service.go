@@ -7,12 +7,12 @@ import (
 	"gate-zkmerkle-proof/global"
 	"gate-zkmerkle-proof/utils"
 	zk_smt "github.com/gatechain/gate-zk-smt"
-	"io/ioutil"
+	"os"
 )
 
 func Handler() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"gate-zkmerkle-proof/config"
 	"gate-zkmerkle-proof/global"
-	"io/ioutil"
+	"os"
 )
 
 func Handler(pendingFlag bool) {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}
