@@ -1,11 +1,7 @@
 name: Go Dependency Submission
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
+  workflow_dispatch:  # Only run manually
 
 permissions:
   contents: write
@@ -14,7 +10,7 @@ jobs:
   dependency-submission:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
       - name: Set up Go
