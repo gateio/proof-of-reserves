@@ -12,7 +12,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -103,7 +102,7 @@ func CalculateAccountTreeRoot(accountLeaves <-chan AccountLeave, accountTree *zk
 
 func Handler() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}

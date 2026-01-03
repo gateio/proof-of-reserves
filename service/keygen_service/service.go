@@ -11,7 +11,7 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
@@ -19,7 +19,7 @@ import (
 
 func Handler() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}

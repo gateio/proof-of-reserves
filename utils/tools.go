@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"golang.org/x/sync/syncmap"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -18,7 +17,7 @@ import (
 var UserIDS syncmap.Map
 
 func ReadUserAssetsV1(dirname string) ([]AccountInfo, []CexAssetInfo, error) {
-	userFiles, err := ioutil.ReadDir(dirname)
+	userFiles, err := os.ReadDir(dirname)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -26,7 +25,7 @@ func ReadUserAssetsV1(dirname string) ([]AccountInfo, []CexAssetInfo, error) {
 	var cexAssetInfo []CexAssetInfo
 
 	workersNum := 8
-	userFileNames := make([]string, 0)
+	userFileNames := make([]string, 0, len(userFiles))
 
 	type UserParseRes struct {
 		accounts []AccountInfo
@@ -38,7 +37,7 @@ func ReadUserAssetsV1(dirname string) ([]AccountInfo, []CexAssetInfo, error) {
 		results[i] = make(chan UserParseRes, 1)
 	}
 	for _, userFile := range userFiles {
-		if strings.Index(userFile.Name(), ".csv") == -1 {
+		if !strings.Contains(userFile.Name(), ".csv") {
 			continue
 		}
 		userFileNames = append(userFileNames, filepath.Join(dirname, userFile.Name()))

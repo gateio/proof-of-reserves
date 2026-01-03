@@ -13,7 +13,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -21,7 +20,7 @@ import (
 
 func CleanKvrocks() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}
@@ -49,7 +48,7 @@ func CleanKvrocks() {
 
 func CheckProverStatus() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}
@@ -88,7 +87,7 @@ func CheckProverStatus() {
 
 func QueryCexAssets() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}
@@ -112,7 +111,7 @@ func QueryCexAssets() {
 		panic("decode invalid witness data")
 	}
 	cexAssetsInfo := utils.RecoverAfterCexAssets(witness)
-	var newAssetsInfo []utils.CexAssetInfo
+	newAssetsInfo := make([]utils.CexAssetInfo, 0, len(cexAssetsInfo))
 	for i := 0; i < len(cexAssetsInfo); i++ {
 		if cexAssetsInfo[i].BasePrice != 0 {
 			newAssetsInfo = append(newAssetsInfo, cexAssetsInfo[i])
@@ -124,7 +123,7 @@ func QueryCexAssets() {
 
 func CheckUserFiles() {
 	global.Cfg = &config.Config{}
-	jsonFile, err := ioutil.ReadFile("./config/config.json")
+	jsonFile, err := os.ReadFile("./config/config.json")
 	if err != nil {
 		panic(fmt.Sprintf("load config err : %s", err.Error()))
 	}

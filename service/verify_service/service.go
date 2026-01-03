@@ -10,7 +10,6 @@ import (
 	"gate-zkmerkle-proof/config"
 	prover_server "gate-zkmerkle-proof/service/prover_service"
 	"gate-zkmerkle-proof/utils"
-	"io/ioutil"
 	"os"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -30,7 +29,7 @@ type Proof struct {
 
 func CexVerify() {
 	cexConfig := &config.CexConfig{}
-	content, err := ioutil.ReadFile("./config/cex_config.json")
+	content, err := os.ReadFile("./config/cex_config.json")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -178,7 +177,7 @@ func CexVerify() {
 		batchNumber++
 		accountTreeRoot = accountTreeRoots[1]
 	}
-	if string(finalCexAssetsInfoComm) != string(expectFinalCexAssetsInfoComm) {
+	if !bytes.Equal(finalCexAssetsInfoComm, expectFinalCexAssetsInfoComm) {
 		panic("Final Cex Assets Info Not Match")
 	}
 	fmt.Printf("account merkle tree root is %x\n", accountTreeRoot)
@@ -187,7 +186,7 @@ func CexVerify() {
 
 func UserVerify() {
 	userConfig := &config.UserConfig{}
-	content, err := ioutil.ReadFile("./config/user_config.json")
+	content, err := os.ReadFile("./config/user_config.json")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -200,7 +199,7 @@ func UserVerify() {
 		panic("invalid account tree root")
 	}
 
-	var proof [][]byte
+	var proof [][]byte = make([][]byte, 0, len(userConfig.MerkleProofEncode))
 	for i := 0; i < len(userConfig.MerkleProofEncode); i++ {
 		p, err := base64.StdEncoding.DecodeString(userConfig.MerkleProofEncode[i])
 		if err != nil || len(p) != 32 {
