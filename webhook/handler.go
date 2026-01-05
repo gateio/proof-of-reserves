@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 // WebhookHandler is an HTTP handler that validates GitHub webhook signatures
@@ -101,8 +102,8 @@ func SecureWebhookServer(addr string, handler http.Handler) *http.Server {
 		Addr:    addr,
 		Handler: handler,
 		// Add reasonable timeouts to prevent slowloris attacks
-		ReadTimeout:  5 * 60 * 1000000000,  // 5 seconds in nanoseconds
-		WriteTimeout: 10 * 60 * 1000000000, // 10 seconds in nanoseconds
-		IdleTimeout:  120 * 60 * 1000000000, // 120 seconds in nanoseconds
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 }
