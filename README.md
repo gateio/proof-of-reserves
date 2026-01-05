@@ -13,6 +13,37 @@ By combining zk-SNARK with Merkle Tree, both the integrity and consistency of th
 
 Gate was one of the earliest cryptocurrency exchanges to implement asset verification using Merkle Tree technology. Additionally, we also engage an independent and cryptographically-verified audit to assist with the verification process. For more details, please refer to the **[merkle-proof](https://github.com/gateio/proof-of-reserves/tree/merkle-proof)** branch.
 
+## GitHub Webhook Integration
+
+This project includes secure GitHub webhook signature validation to ensure webhook deliveries are authentic and have not been tampered with. The webhook package implements HMAC-SHA256 signature validation as recommended by GitHub.
+
+### Features
+
+- **HMAC-SHA256 Validation**: Validates webhook payloads using GitHub's recommended signature method
+- **Constant-Time Comparison**: Uses constant-time comparison to prevent timing attacks
+- **Production-Ready Server**: Includes a complete webhook server implementation with security best practices
+- **Comprehensive Testing**: Full test coverage with the official GitHub test vectors
+
+### Quick Start
+
+See the [webhook package documentation](./webhook/README.md) for detailed instructions on:
+- Setting up webhook signature validation
+- Configuring your webhook secret securely
+- Running the example webhook server
+- Security best practices
+
+### Example Server
+
+Run the included webhook server:
+
+```bash
+export WEBHOOK_SECRET="your-secret-token"
+cd examples/webhook-server
+go run main.go
+```
+
+For more information, see the [webhook README](./webhook/README.md).
+
 
 ## Preparations
 
