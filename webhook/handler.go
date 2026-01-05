@@ -30,7 +30,6 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	// Get the signature from the header
 	signature := r.Header.Get("X-Hub-Signature-256")
@@ -77,7 +76,6 @@ func WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// eventType := r.Header.Get("X-GitHub-Event")
 
 	// Send success response
-	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Webhook received and validated successfully"))
 }
 
