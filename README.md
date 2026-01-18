@@ -1,4 +1,10 @@
-# zk-SNARK & MerkleTree Proof of Solvency
+proof.csvuser_config.jsoncex_config.jsonzkpor864.vk.save- config
+    cex_config.json
+    user_config.json
+    proof.csv
+zkpor864.vk.save
+main./main verify cex./main verify usermerkle leave hash: 164bc38a71b7a757455d93017242b4960cd1fea6842d8387b60c5780205858ce
+verify pass!!!# zk-SNARK & MerkleTree Proof of Solvency
 
 This project aims to explore encrypted technology based on zk-SNARK and MerkleTree to achieve the goal of bringing digital currency exchanges closer to decentralization. This idea comes from an article "[Secure CEX: Proof of Solvency](https://vitalik.ca/general/2022/11/19/proof_of_solvency.html)" by Vitalik Buterin, the co-founder of Ethereum.
 
