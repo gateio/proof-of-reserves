@@ -90,5 +90,18 @@ var (
 		"natix":      true,
 		"cat":        true,
 		"atlas":      true,
+		"zbai":       true,
+		"akita":      true,
+		"neirocto":   true,
+		"lever":      true,
+		"xpin":       true,
+		"wkc":        true,
+		"tag":        true,
+		"rektcoin":   true,
+		"pump":       true,
+		"love":       true,
+		"kick":       true,
+		"neiro":      true,
+		"ake":        true,
 	}
 )
