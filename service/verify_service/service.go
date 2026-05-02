@@ -10,13 +10,14 @@ import (
 	"gate-zkmerkle-proof/config"
 	prover_server "gate-zkmerkle-proof/service/prover_service"
 	"gate-zkmerkle-proof/utils"
+	"io/ioutil"
+	"os"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/poseidon"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 	"github.com/gocarina/gocsv"
-	"io/ioutil"
-	"os"
 )
 
 type Proof struct {
@@ -68,7 +69,7 @@ func CexVerify() {
 	prevCexAssetListCommitments := make([][]byte, 2)
 	prevAccountTreeRoots := make([][]byte, 2)
 	// depth-28 empty account tree root
-	emptyAccountTreeRoot, err := hex.DecodeString("0118925954da77d1a4b241fd163e4373e2265c515cfa60af7fcd28c8cb9ad58a")
+	emptyAccountTreeRoot, err := hex.DecodeString("037bf6d8fe5b7cbaecf7b35604b57f82173f5c8155c1c750cef00afebcd65436")
 	if err != nil {
 		fmt.Println("wrong empty empty account tree root")
 		return
@@ -152,6 +153,8 @@ func CexVerify() {
 
 		if string(accountTreeRoots[0]) != string(prevAccountTreeRoots[1]) ||
 			string(cexAssetListCommitments[0]) != string(prevCexAssetListCommitments[1]) {
+			fmt.Println(base64.StdEncoding.EncodeToString(accountTreeRoots[0]))
+			fmt.Println(base64.StdEncoding.EncodeToString(prevAccountTreeRoots[1]))
 			fmt.Println(base64.StdEncoding.EncodeToString(cexAssetListCommitments[0]))
 			fmt.Println(base64.StdEncoding.EncodeToString(prevCexAssetListCommitments[1]))
 			fmt.Println("mismatch account tree root or cex asset list commitment:", batchNumber)

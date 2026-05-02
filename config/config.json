@@ -1,5 +1,5 @@
 {
-  "MysqlDataSource" : "root:mysqlpw@tcp(127.0.0.1:55000)/zkpos?parseTime=true",
+  "MysqlDataSource" : "root:root@tcp(127.0.0.1:3306)/zkpos?parseTime=true",
   "DbSuffix": "202307",
   "UserDataFile": "./example_data/",
   "TreeDB": {
