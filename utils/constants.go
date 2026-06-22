@@ -107,5 +107,7 @@ var (
 		"kct":         true,
 		"dogelonmars": true,
 		"ptb":         true,
+		"funtoken":    true,
+		"hmstr":       true,
 	}
 )
